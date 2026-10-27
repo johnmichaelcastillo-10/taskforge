@@ -59,27 +59,29 @@ const features = [
         </p>
       </div>
 
-      <!-- The board, in the theme the visitor is using. Only the visible one loads up front. -->
-      <figure class="overflow-hidden rounded-xl border border-default shadow-xl shadow-black/5">
+      <!-- The board, in the theme the visitor is using; only the visible one loads up front.
+           On phones the whole screenshot would be too small to read, so a window shows part
+           of it (the To do and In progress columns) at about 2.5× instead. -->
+      <figure class="h-56 overflow-hidden rounded-xl border border-default shadow-xl shadow-black/5 sm:h-auto">
         <img
           src="/screens/board-light.webp"
           srcset="/screens/board-light-960.webp 960w, /screens/board-light.webp 1600w"
-          sizes="(min-width: 1024px) 58vw, 100vw"
+          sizes="(min-width: 1024px) 58vw, (min-width: 640px) 100vw, 250vw"
           width="1600"
           height="800"
           alt="The Taskforge board: tasks in Backlog, To do, In progress and Done columns, with tags, due dates, estimates and tracked time"
           fetchpriority="high"
-          class="block w-full dark:hidden"
+          class="block w-[250%] max-w-none -translate-x-[33%] -translate-y-[7%] sm:w-full sm:translate-0 dark:hidden"
         >
         <img
           src="/screens/board-dark.webp"
           srcset="/screens/board-dark-960.webp 960w, /screens/board-dark.webp 1600w"
-          sizes="(min-width: 1024px) 58vw, 100vw"
+          sizes="(min-width: 1024px) 58vw, (min-width: 640px) 100vw, 250vw"
           width="1600"
           height="800"
           alt="The Taskforge board in dark mode"
           loading="lazy"
-          class="hidden w-full dark:block"
+          class="hidden w-[250%] max-w-none -translate-x-[33%] -translate-y-[7%] sm:w-full sm:translate-0 dark:block"
         >
       </figure>
     </UContainer>

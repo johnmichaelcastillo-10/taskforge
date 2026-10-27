@@ -71,6 +71,23 @@ watch(() => [open.value, props.taskId], () => {
 
 const dirty = computed(() => task.value !== undefined && JSON.stringify(state.value) !== JSON.stringify(stateFrom(task.value)))
 
+// Closing with unsaved edits (Escape, the X, a click outside) asks first instead of losing them.
+const discarding = ref(false)
+const panelOpen = computed({
+  get: () => open.value,
+  set: (value) => {
+    if (!value && dirty.value && !props.readonly) {
+      discarding.value = true
+      return
+    }
+    open.value = value
+  },
+})
+async function discardChanges() {
+  if (task.value) state.value = stateFrom(task.value)
+  open.value = false
+}
+
 // The form's own schema: estimate in hours here, minutes on the server.
 const formSchema = taskUpdateSchema.omit({ estimateMinutes: true })
 
@@ -219,7 +236,7 @@ const priorityItems = PRIORITIES.map(value => ({ value, label: PRIORITY_LABELS[v
 
 <template>
   <USlideover
-    v-model:open="open"
+    v-model:open="panelOpen"
     :title="task?.title ?? 'Task'"
     :description="task ? `In ${task.projectName}` : undefined"
     :ui="{ content: 'sm:max-w-xl' }"
@@ -488,6 +505,13 @@ const priorityItems = PRIORITIES.map(value => ({ value, label: PRIORITY_LABELS[v
     </template>
   </USlideover>
 
+  <ConfirmDialog
+    v-model:open="discarding"
+    title="Discard your changes?"
+    description="Your edits to this task haven’t been saved."
+    confirm-label="Discard changes"
+    :confirm="discardChanges"
+  />
   <ConfirmDialog
     v-if="task"
     v-model:open="deleting"
