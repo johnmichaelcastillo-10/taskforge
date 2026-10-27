@@ -7,6 +7,7 @@ const route = useRoute()
 const router = useRouter()
 const toast = useToast()
 const { tags } = useTags()
+const timer = useTimer()
 
 // One board per project, chosen in the URL (?project=12). Defaults to the first active project.
 const { data: projectData } = await useFetch('/api/projects', { key: 'board-projects' })
@@ -55,6 +56,8 @@ async function move(task: Task, status: TaskStatus, position: number) {
     await $fetch(`/api/tasks/${task.id}/move`, { method: 'POST', body: { status, position } })
     if (status === 'done' && task.status !== 'done') {
       toast.add({ title: 'Task completed', description: task.title, icon: 'i-lucide-circle-check' })
+      // Completing a task stops its timer on the server.
+      if (timer.running.value?.taskId === task.id) await timer.refresh()
     }
   }
   catch (error) {

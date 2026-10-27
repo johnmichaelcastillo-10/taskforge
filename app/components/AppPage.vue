@@ -13,6 +13,7 @@ const { user } = useUserSession()
     <template #header>
       <UDashboardNavbar :title="title">
         <template #right>
+          <TimerIndicator />
           <slot name="actions" />
           <UColorModeButton />
         </template>

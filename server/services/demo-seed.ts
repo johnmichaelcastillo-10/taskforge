@@ -1,4 +1,4 @@
-import { activityLogs, projects, tags, taskComments, taskTags, tasks, type users } from '../database/schema'
+import { activityLogs, projects, tags, taskComments, taskTags, tasks, workSessions, type users } from '../database/schema'
 import type { Executor } from '../utils/db'
 
 type Account = typeof users.$inferSelect
@@ -75,6 +75,36 @@ const SAMPLE_COMMENTS: Record<string, { body: string, daysAgo: number }[]> = {
   'Timeouts on slow report queries': [
     { body: 'Seen on reports over 90 days. The query scans every order instead of using the created_at index.', daysAgo: 1 },
   ],
+}
+
+/**
+ * Past work sessions for a sample task, so the timer history and analytics have real rows to
+ * aggregate. Finished tasks took between 70% and 140% of their estimate (varying by task, the
+ * same every time); work under way has used about 40% so far. Time is split into sessions of up
+ * to two hours, one a day, from 10:00 local time, on the days before the task was finished (or
+ * before today).
+ */
+function sampleSessions(task: typeof tasks.$inferSelect, index: number, timeZone: string, today: string) {
+  if (!task.estimateMinutes || task.status === 'backlog' || task.status === 'todo') {
+    return []
+  }
+  const factor = task.status === 'done' ? 0.7 + ((index * 37) % 71) / 100 : 0.4
+  let remaining = Math.round(task.estimateMinutes * factor) * 60
+  // The day before it was finished, so no session runs past the moment it was marked done.
+  const lastDay = addDays(task.completedAt ? dateIn(timeZone, task.completedAt) : today, -1)
+
+  const sessions: { taskId: number, startedAt: Date, endedAt: Date }[] = []
+  for (let back = 0; remaining > 0; back += 1) {
+    const day = addDays(lastDay, -back)
+    const tenAm = Date.parse(`${day}T10:00:00Z`) - timeZoneOffsetSeconds(timeZone, new Date(`${day}T12:00:00Z`)) * 1000
+    const length = Math.min(remaining, 2 * 3600)
+    // Later sessions on later hours, so a day's work doesn't all start at the same minute.
+    const start = tenAm + ((index % 4) * 90) * 60_000
+    sessions.push({ taskId: task.id, startedAt: new Date(start), endedAt: new Date(start + length * 1000) })
+    remaining -= length
+  }
+  // Never in the future: an in-progress task's sessions end before now.
+  return sessions.filter(session => session.endedAt.getTime() < Date.now())
 }
 
 /**
@@ -174,6 +204,11 @@ export async function seedDemoWorkspace(db: Executor, account: Account) {
 
     await tx.insert(taskTags).values(taskRows.flatMap((task, index) =>
       (samples[index]!.tags ?? []).map(name => ({ taskId: task.id, tagId: tagId[name]! }))))
+
+    const sessionValues = taskRows.flatMap((task, index) => sampleSessions(task, index, account.timezone, today))
+    if (sessionValues.length > 0) {
+      await tx.insert(workSessions).values(sessionValues.map(session => ({ ...session, userId })))
+    }
 
     const commentValues = taskRows.flatMap(task => (SAMPLE_COMMENTS[task.title] ?? [])
       .map(comment => ({ taskId: task.id, authorId: userId, body: comment.body, createdAt: daysAgo(comment.daysAgo) })))

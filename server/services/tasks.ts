@@ -4,6 +4,7 @@ import { projects, taskTags, tasks } from '../database/schema'
 import type { Executor } from '../utils/db'
 import { logActivity } from './activity'
 import { assertEditable, getProject, likePattern, type Project } from './projects'
+import { stopTimersOn } from './running-timers'
 import { assertOwnTags } from './tags'
 
 type TaskRow = typeof tasks.$inferSelect
@@ -17,6 +18,7 @@ export interface TaskDetails extends TaskRow {
   projectName: string
   tagIds: number[]
   commentCount: number
+  trackedSeconds: number
 }
 
 // Correlated subqueries rather than one query per task: the board loads in a single query.
@@ -25,6 +27,9 @@ const details = {
   projectName: projects.name,
   tagIds: sql<string | null>`(select group_concat(tt.tag_id) from task_tags as tt where tt.task_id = "tasks"."id")`,
   commentCount: sql<number>`(select count(*) from task_comments as c where c.task_id = "tasks"."id")`,
+  // Every session on the task, the running one counted up to now.
+  trackedSeconds: sql<number>`(select coalesce(sum(coalesce(ws.ended_at, unixepoch()) - ws.started_at), 0)
+    from work_sessions as ws where ws.task_id = "tasks"."id")`,
 }
 
 function withDetails(row: Omit<TaskDetails, 'tagIds'> & { tagIds: string | null }): TaskDetails {
@@ -79,11 +84,15 @@ async function setTags(db: Executor, taskId: number, tagIds: number[]) {
   }
 }
 
-/** Logs a change of column: a move, and a completion or reopening when Done is involved. */
-async function logStatusChange(db: Executor, ownerId: number, task: TaskRow, to: TaskRow['status']) {
+/**
+ * After a change of column: logs the move, and a completion or reopening when Done is involved.
+ * Completing a task also stops a timer running on it, since done tasks aren't timed.
+ */
+async function afterStatusChange(db: Executor, ownerId: number, task: TaskRow, to: TaskRow['status']) {
   const base = { userId: ownerId, projectId: task.projectId, taskId: task.id, subject: task.title }
   await logActivity(db, { ...base, action: 'task.moved', detail: { from: task.status, to } })
   if (to === 'done') {
+    await stopTimersOn(db, { taskId: task.id })
     await logActivity(db, { ...base, action: 'task.completed' })
   }
   else if (task.status === 'done') {
@@ -147,7 +156,7 @@ export async function updateTask(db: Executor, ownerId: number, id: number, inpu
       await logActivity(tx, { userId: ownerId, projectId: task.projectId, taskId: id, action: 'task.updated', subject })
     }
     if (statusChanged) {
-      await logStatusChange(tx, ownerId, { ...task, title: subject }, status)
+      await afterStatusChange(tx, ownerId, { ...task, title: subject }, status)
     }
     return (await getTask(tx, ownerId, id)).task
   })
@@ -192,7 +201,7 @@ export async function moveTask(db: Executor, ownerId: number, id: number, input:
       .where(eq(tasks.id, id))
 
     if (statusChanged) {
-      await logStatusChange(tx, ownerId, task, input.status)
+      await afterStatusChange(tx, ownerId, task, input.status)
     }
     return (await getTask(tx, ownerId, id)).task
   })

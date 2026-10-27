@@ -49,7 +49,7 @@ describe('demo access', async () => {
     const page = await get('/dashboard', cookie)
     expect(page.status).toBe(200)
     const html = await page.text()
-    expect(html).toContain('Welcome, Demo user')
+    expect(html).toMatch(/Good (morning|afternoon|evening), Demo user/)
     expect(html).toContain('Demo workspace')
   })
 

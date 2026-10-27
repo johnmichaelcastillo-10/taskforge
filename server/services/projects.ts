@@ -3,6 +3,7 @@ import type { z } from 'zod'
 import { projects } from '../database/schema'
 import type { Executor } from '../utils/db'
 import { logActivity } from './activity'
+import { stopTimersOn } from './running-timers'
 
 /** A project with its task counts, from which progress is worked out. */
 export type Project = typeof projects.$inferSelect & { taskCount: number, doneCount: number }
@@ -121,6 +122,8 @@ export async function updateProject(db: Executor, ownerId: number, id: number, i
       await logActivity(tx, { ...base, action: 'project.updated' })
     }
     if (archiving) {
+      // Archived projects are read-only, so nothing in them keeps timing.
+      await stopTimersOn(tx, { projectId: id })
       await logActivity(tx, { ...base, action: 'project.archived' })
     }
     if (restoring) {

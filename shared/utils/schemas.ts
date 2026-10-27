@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { PRIORITIES, PROJECT_STATUSES, TAG_COLORS, TASK_STATUSES } from './constants'
-import { isValidTimeZone } from './dates'
+import { daysBetween, isValidTimeZone } from './dates'
 
 // Shared by the forms (instant feedback) and the server routes (the check that counts).
 
@@ -144,3 +144,26 @@ export const commentSchema = z.object({
 })
 
 export type TaskCreateData = z.output<typeof taskCreateSchema>
+
+/** Start timing a task. `switch` stops a timer running on another task first. */
+export const timerStartSchema = z.object({
+  taskId: id,
+  switch: z.boolean().default(false),
+})
+
+export const sessionFiltersSchema = z.object({
+  taskId: id.optional(),
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+})
+
+/** A span of calendar days, both ends included, at most a year. */
+export const dateRangeSchema = z.object({
+  from: z.iso.date({ error: 'Use a date like 2026-03-04.' }),
+  to: z.iso.date({ error: 'Use a date like 2026-03-04.' }),
+})
+  .refine(range => range.from <= range.to, { message: 'The start must be before the end.', path: ['to'] })
+  .refine(range => daysBetween(range.from, range.to) < 366, { message: 'Choose at most a year.', path: ['to'] })
+
+export const dashboardQuerySchema = z.object({
+  days: z.coerce.number().pipe(z.union([z.literal(7), z.literal(30), z.literal(90)])).default(7),
+})

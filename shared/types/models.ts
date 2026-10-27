@@ -33,6 +33,19 @@ export interface Task {
   updatedAt: string
   tagIds: number[]
   commentCount: number
+  /** All tracked time, the running timer included up to now. */
+  trackedSeconds: number
+}
+
+export interface WorkSession {
+  id: number
+  taskId: number
+  taskTitle: string
+  projectId: number
+  projectName: string
+  startedAt: string
+  endedAt: string | null
+  durationSeconds: number
 }
 
 export interface Tag {

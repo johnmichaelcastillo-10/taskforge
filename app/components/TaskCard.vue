@@ -15,6 +15,8 @@ const emit = defineEmits<{
 }>()
 
 const { byId } = useTags()
+const { running } = useTimer()
+const timing = computed(() => running.value?.taskId === props.task.id)
 const tags = computed(() => props.task.tagIds.map(id => byId.value.get(id)).filter(tag => tag !== undefined))
 
 const moveItems = computed<DropdownMenuItem[][]>(() => [
@@ -113,6 +115,27 @@ const moveItems = computed<DropdownMenuItem[][]>(() => [
           class="size-3.5"
         />
         {{ formatMinutes(task.estimateMinutes) }}
+      </span>
+      <span
+        v-if="timing"
+        class="inline-flex items-center gap-1 font-medium text-error"
+      >
+        <span
+          class="size-1.5 animate-pulse rounded-full bg-error motion-reduce:animate-none"
+          aria-hidden="true"
+        />
+        Timing
+      </span>
+      <span
+        v-else-if="task.trackedSeconds >= 60"
+        class="inline-flex items-center gap-1"
+        title="Time tracked"
+      >
+        <UIcon
+          name="i-lucide-timer"
+          class="size-3.5"
+        />
+        {{ formatDuration(task.trackedSeconds) }}<span class="sr-only"> tracked</span>
       </span>
       <span
         v-if="task.commentCount"

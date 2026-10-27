@@ -140,6 +140,28 @@ export const taskComments = sqliteTable(
 )
 
 /**
+ * Time spent on a task. A session with no `ended_at` is the running timer; the partial unique
+ * index allows at most one per user, whatever the application code does. Durations are always
+ * worked out from the two timestamps, both set by the server.
+ */
+export const workSessions = sqliteTable(
+  'work_sessions',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    taskId: integer('task_id').notNull().references(() => tasks.id, { onDelete: 'cascade' }),
+    startedAt: integer('started_at', { mode: 'timestamp' }).notNull(),
+    endedAt: integer('ended_at', { mode: 'timestamp' }),
+  },
+  table => [
+    uniqueIndex('work_sessions_running_idx').on(table.userId).where(sql`${table.endedAt} is null`),
+    index('work_sessions_user_idx').on(table.userId, table.startedAt),
+    index('work_sessions_task_idx').on(table.taskId),
+    check('work_sessions_order', sql`${table.endedAt} is null or ${table.endedAt} >= ${table.startedAt}`),
+  ],
+)
+
+/**
  * What happened, for the dashboard and project pages. `subject` keeps the name of the project or
  * task at the time, so entries still read correctly after a rename or delete; `detail` holds
  * extra facts such as the columns a task moved between.

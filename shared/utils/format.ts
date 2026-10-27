@@ -3,9 +3,12 @@ export function formatMinutes(minutes: number): string {
   return minutes < 60 ? `${minutes}m` : `${+(minutes / 60).toFixed(1)}h`
 }
 
-/** Tracked time: "0m", "45m", "3h 05m", "26h 10m". */
+/** Tracked time: "40s", "45m", "3h 05m", "26h 10m". */
 export function formatDuration(seconds: number): string {
-  const totalMinutes = Math.floor(Math.max(0, seconds) / 60)
+  if (seconds < 60) {
+    return `${Math.max(0, Math.floor(seconds))}s`
+  }
+  const totalMinutes = Math.floor(seconds / 60)
   const hours = Math.floor(totalMinutes / 60)
   const minutes = totalMinutes % 60
   return hours === 0 ? `${minutes}m` : `${hours}h ${String(minutes).padStart(2, '0')}m`
