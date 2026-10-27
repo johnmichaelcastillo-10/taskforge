@@ -33,11 +33,13 @@ COPY --from=build --chown=node:node /app/.output ./.output
 COPY --from=migrator --chown=node:node /app/node_modules ./migrator/node_modules
 COPY --from=build --chown=node:node /app/scripts/migrate.mjs ./migrator/migrate.mjs
 COPY --from=build --chown=node:node /app/server/database/migrations ./migrator/migrations
+COPY --from=build --chown=node:node /app/scripts/docker-start.sh ./start.sh
+COPY --from=build --chown=node:node /app/scripts/session-secret.sh ./session-secret.sh
 RUN mkdir -p /app/data && chown node:node /app/data
 USER node
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
     CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 # Migrations are safe to run on every start: applied ones are skipped, and SQLite here has a
-# single writer (this container).
-CMD ["sh", "-c", "node migrator/migrate.mjs && exec node .output/server/index.mjs"]
+# single writer (this container). Run through sh, so the script needs no executable bit.
+CMD ["sh", "start.sh"]

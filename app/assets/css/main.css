@@ -1,2 +1,8 @@
 @import "tailwindcss";
 @import "@nuxt/ui";
+
+/* Light mode uses the 600 shade of the primary color (Nuxt UI defaults to 500), so white text on
+   primary buttons passes WCAG AA contrast. Dark mode keeps Nuxt UI's 400 with dark text. */
+:root:not(.dark) {
+  --ui-primary: var(--ui-color-primary-600);
+}

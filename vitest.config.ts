@@ -2,10 +2,25 @@ import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   test: {
-    include: ['tests/**/*.test.ts'],
-    environment: 'node',
-    // The end-to-end tests build and boot the app once per file, which takes a while.
-    hookTimeout: 300_000,
-    testTimeout: 60_000,
+    projects: [
+      {
+        test: {
+          name: 'unit',
+          include: ['tests/unit/**/*.test.ts'],
+          environment: 'node',
+        },
+      },
+      {
+        test: {
+          name: 'e2e',
+          include: ['tests/e2e/**/*.test.ts'],
+          environment: 'node',
+          // Builds the app once; each test file then starts its own server and database.
+          globalSetup: ['tests/e2e/global-setup.ts'],
+          hookTimeout: 120_000,
+          testTimeout: 60_000,
+        },
+      },
+    ],
   },
 })

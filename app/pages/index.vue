@@ -1,36 +1,58 @@
 <script setup lang="ts">
-// Phase 1 placeholder: proves the page, the API route and the database work together. The
-// real landing page and app shell come in Phase 2 (docs/SPEC.md).
-const { data: health, status } = await useFetch('/api/health')
-
 useSeoMeta({
   title: 'Taskforge',
-  description: 'Project management and time tracking for developers. In development.',
+  description: 'Project management and time tracking for developers: projects, a Kanban board, work timers and analytics.',
 })
+
+const { loggedIn } = useUserSession()
+const { starting, startDemo } = useStartDemo()
+
+const features = [
+  { icon: 'i-lucide-folder-kanban', title: 'Projects', description: 'Deadlines, priorities and progress worked out from the tasks inside them.' },
+  { icon: 'i-lucide-square-kanban', title: 'Kanban board', description: 'Drag tasks from Backlog to Done, or move them from the keyboard.' },
+  { icon: 'i-lucide-timer', title: 'Work timer', description: 'Time each task. Durations are measured on the server, not trusted from the browser.' },
+  { icon: 'i-lucide-chart-column', title: 'Analytics', description: 'Completed tasks, hours tracked and estimates against actual time.' },
+]
 </script>
 
 <template>
-  <UContainer class="py-24">
-    <h1 class="text-4xl font-semibold tracking-tight">
-      Taskforge
-    </h1>
-    <p class="mt-3 text-muted">
-      Projects, a Kanban board, work timers and analytics. In development.
-    </p>
-    <p class="mt-8 text-sm">
-      Database:
-      <UBadge
-        v-if="status === 'success' && health?.checks.database === 'ok'"
-        color="success"
-        variant="subtle"
-        label="connected"
-      />
-      <UBadge
-        v-else
-        color="error"
-        variant="subtle"
-        label="unavailable"
-      />
-    </p>
-  </UContainer>
+  <div>
+    <UPageHero
+      title="Plan the work. Track the time."
+      description="Taskforge keeps your projects, tasks and working hours in one place. The demo gives you a private workspace in one click, no sign-up needed."
+    >
+      <template #links>
+        <UButton
+          v-if="loggedIn"
+          to="/dashboard"
+          label="Open the app"
+          size="xl"
+          trailing-icon="i-lucide-arrow-right"
+        />
+        <UButton
+          v-else
+          label="Try the demo"
+          size="xl"
+          trailing-icon="i-lucide-arrow-right"
+          :loading="starting"
+          @click="startDemo"
+        />
+      </template>
+    </UPageHero>
+
+    <UPageSection
+      title="What's inside"
+      description="Taskforge is in active development; these arrive in stages."
+    >
+      <UPageGrid class="lg:grid-cols-4">
+        <UPageCard
+          v-for="feature in features"
+          :key="feature.title"
+          :icon="feature.icon"
+          :title="feature.title"
+          :description="feature.description"
+        />
+      </UPageGrid>
+    </UPageSection>
+  </div>
 </template>

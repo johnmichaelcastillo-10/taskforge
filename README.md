@@ -3,8 +3,20 @@
 Project management and time tracking for developers: projects, a Kanban board, work-session
 timers and productivity analytics.
 
-> **Status: in development.** The foundation is in place: Nuxt, SQLite with migrations, Docker,
-> a health check and CI. Features arrive phase by phase; see [docs/SPEC.md](docs/SPEC.md).
+> **Status: in development.** Demo access, accounts and the app shell work. Projects, tasks,
+> timers and analytics arrive phase by phase; see [docs/SPEC.md](docs/SPEC.md).
+
+## Features so far
+
+- **Try the demo:** one click creates a private workspace with no sign-up. It's deleted after
+  three days, and its session cookie expires with it.
+- **Accounts:** email and password sign-in, with passwords hashed using scrypt. Sign-up is off
+  unless `NUXT_PUBLIC_REGISTRATION_ENABLED=true`, so the hosted copy takes demo visitors only.
+- **Server-side checks:** every protected request loads the account from the database. A
+  session whose account was deleted, or whose demo expired, is signed out.
+- **Rate limits** on sign-in, sign-up and demo creation, counted in the database so they hold
+  across serverless instances.
+- **App shell:** a responsive sidebar layout with dark mode.
 
 ## Stack
 
@@ -40,8 +52,7 @@ cp .env.example .env
 docker compose up --build -d
 ```
 
-Open <http://localhost:8094>. The page shows **Database: connected** when the app can reach
-SQLite.
+Open <http://localhost:8094> and choose **Try the demo**.
 
 The health check is at <http://localhost:8094/api/health>:
 
@@ -52,7 +63,9 @@ The health check is at <http://localhost:8094/api/health>:
 It returns HTTP 503 with `"database":"unavailable"` when the database can't be reached.
 
 On start, the container applies any pending migrations, then starts the server. Its data lives
-on the `taskforge-data` volume, which survives restarts, rebuilds and `docker compose down`.
+on the `taskforge-data` volume, which survives restarts, rebuilds and `docker compose down`. If
+`.env` has no `NUXT_SESSION_PASSWORD`, the first start generates one and keeps it on the same
+volume, so sign-ins survive restarts too.
 
 ## Everyday commands
 
@@ -77,7 +90,7 @@ docker compose --profile dev up dev
 
 Open <http://localhost:3000>. The first start installs dependencies into `node_modules` and
 takes a few minutes; later starts are quicker. The dev server uses its own database,
-`data/dev.db`, separate from the app container's volume.
+`data/dev.db`, separate from the app container's volume. Sign-up is on in development.
 
 Use the same service for every npm command:
 
@@ -91,11 +104,13 @@ Use the same service for every npm command:
 | Apply migrations to the dev database | `docker compose run --rm dev npm run db:migrate` |
 | Install a package | `docker compose run --rm dev npm install <package>` |
 
-The end-to-end tests build the app and start it against an in-memory database.
+The end-to-end tests build the app once, then start a server per test file, each on its own
+temporary SQLite file with migrations applied.
 
 ## Resetting local data
 
-> **Warning:** this permanently deletes every project, task and session in the local app.
+> **Warning:** this permanently deletes every account and all their data in the local app, and
+> signs everyone out.
 
 ```bash
 docker compose down --volumes
@@ -125,17 +140,22 @@ Settings live in `.env`, copied from [.env.example](.env.example). Never commit 
 | `APP_PORT` | `8094` | Host port of the app container |
 | `DEV_PORT` | `3000` | Host port of the dev server |
 | `DEV_UID`, `DEV_GID` | `1000` | Linux only: the user the dev container runs as (see Troubleshooting) |
+| `NUXT_SESSION_PASSWORD` | *(generated)* | Encrypts session cookies; 32+ characters. Generated locally if empty; required in production |
+| `NUXT_PUBLIC_REGISTRATION_ENABLED` | `false` (`true` in dev) | Allows sign-up |
+| `NUXT_DEMO_TTL_HOURS` | `72` | How long a demo account lives |
+| `NUXT_TRUST_PROXY` | `false` | Read client addresses from `X-Forwarded-For`; only behind a proxy that sets it (Vercel) |
 | `NUXT_DATABASE_URL` | `file:./data/taskforge.db` | Database URL for running outside Docker; Turso uses `libsql://…` |
 | `NUXT_DATABASE_AUTH_TOKEN` | *(empty)* | Turso auth token |
 
 ## Project layout
 
 ```text
-app/                 Vue pages, components and styles
+app/                 Vue pages, layouts, components and styles
 server/api/          HTTP routes (/api/...)
 server/database/     Drizzle schema and generated SQL migrations
-server/utils/        Server helpers, auto-imported (database connection)
-scripts/migrate.mjs  Applies migrations: Docker start, dev, CI and deploys
+server/utils/        Server helpers, auto-imported (database, accounts, rate limits, validation)
+shared/              Validation schemas and types used by both the app and the server
+scripts/             Migrations, and the containers' start scripts
 tests/unit/          Unit tests
 tests/e2e/           Tests against the built server
 docs/SPEC.md         Product specification and roadmap
@@ -160,6 +180,9 @@ docs/SPEC.md         Product specification and roadmap
 
   Files created earlier by another user can be handed back with
   `sudo chown -R "$(id -u):$(id -g)" node_modules .nuxt .output data`.
+- **Signed out after a restart:** the session secret changed. Keep `NUXT_SESSION_PASSWORD`
+  fixed in `.env`, or leave it empty and keep the volume (or `data/session-password` in
+  development).
 - **App container unhealthy:** check `docker compose logs app`. A failed migration stops the
   container before the server starts, and the error is in the log.
 - **Docker Hub download errors** (`connection reset`, `EOF`): run the command again; pulls

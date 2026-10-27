@@ -1,5 +1,14 @@
+<script setup lang="ts">
+useHead({
+  htmlAttrs: { lang: 'en' },
+  titleTemplate: title => (title && title !== 'Taskforge' ? `${title} · Taskforge` : 'Taskforge'),
+})
+</script>
+
 <template>
   <UApp>
-    <NuxtPage />
+    <NuxtLayout>
+      <NuxtPage />
+    </NuxtLayout>
   </UApp>
 </template>
