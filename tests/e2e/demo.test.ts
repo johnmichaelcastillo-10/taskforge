@@ -85,9 +85,18 @@ describe('demo access', async () => {
     expect(row.rows).toHaveLength(0)
   })
 
+  it('shows the desktop download page, without links until installers are published', async () => {
+    const page = await get('/download')
+    expect(page.status).toBe(200)
+    const html = await page.text()
+    expect(html).toContain('Taskforge on your desktop')
+    expect(html).toContain('Installers aren’t published for this copy of Taskforge yet.')
+  })
+
   it('shows the demo button to guests and hides sign-up', async () => {
     const home = await (await get('/')).text()
     expect(home).toContain('Try the demo')
+    expect(home).toContain('href="/download"')
 
     const register = await (await get('/register')).text()
     expect(register).toContain('Registration is closed')

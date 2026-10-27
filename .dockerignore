@@ -22,3 +22,5 @@ playwright-report
 *.log
 *.md
 docs
+# The desktop shell is built separately (Rust); its build output can be gigabytes.
+desktop

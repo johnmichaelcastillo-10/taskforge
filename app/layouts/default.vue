@@ -33,8 +33,18 @@ const { loggedIn } = useUserSession()
     </main>
 
     <footer class="border-t border-default py-6 text-sm text-muted">
-      <UContainer>
-        Taskforge: projects, a Kanban board, work timers and analytics.
+      <UContainer class="flex flex-wrap items-center justify-between gap-3">
+        <span>Taskforge: projects, a Kanban board, work timers and analytics.</span>
+        <ULink
+          to="/download"
+          class="inline-flex items-center gap-1 hover:text-default"
+        >
+          <UIcon
+            name="i-lucide-monitor-down"
+            class="size-4"
+          />
+          Desktop app
+        </ULink>
       </UContainer>
     </footer>
   </div>

@@ -27,6 +27,8 @@ export default defineNuxtConfig({
     public: {
       // Sign-up is off unless switched on; the hosted demo uses demo accounts only.
       registrationEnabled: false,
+      // Where the desktop installers are published (the download page links there).
+      downloadsUrl: '',
     },
   },
 
@@ -67,7 +69,9 @@ export default defineNuxtConfig({
         'style-src': ['\'self\'', '\'unsafe-inline\''],
         'img-src': ['\'self\'', 'data:'],
         'font-src': ['\'self\'', 'data:'],
-        'connect-src': ['\'self\''],
+        // ipc: and ipc.localhost are how the desktop app's pages reach its native shell (Tauri);
+        // ordinary browsers have nothing at those addresses.
+        'connect-src': ['\'self\'', 'ipc:', 'http://ipc.localhost'],
         'object-src': ['\'none\''],
         'base-uri': ['\'none\''],
         'form-action': ['\'self\''],

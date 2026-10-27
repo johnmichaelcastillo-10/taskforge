@@ -1,0 +1,42 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Taskforge",
+  "version": "0.1.0",
+  "identifier": "dev.taskforge.desktop",
+  "build": {
+    "frontendDist": "http://localhost:8094"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "Taskforge",
+        "width": 1280,
+        "height": 820,
+        "minWidth": 380,
+        "minHeight": 560,
+        "center": true
+      }
+    ]
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["msi", "nsis", "deb", "appimage"],
+    "category": "Productivity",
+    "shortDescription": "Projects, a Kanban board and a work timer",
+    "longDescription": "Taskforge for the desktop: the Taskforge web app in its own window, with the running timer in the system tray, notifications and a global shortcut.",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.png",
+      "icons/icon.ico"
+    ],
+    "linux": {
+      "deb": {
+        "depends": []
+      }
+    }
+  }
+}
