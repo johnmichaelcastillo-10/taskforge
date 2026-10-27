@@ -7,13 +7,15 @@ interface RateLimit {
   action: string
   limit: number
   windowSeconds: number
+  /** Count per something other than the client address, such as an API token. */
+  key?: string
 }
 
 /**
- * A fixed-window limit per client address. Throws 429 with Retry-After once `limit` requests
- * have been made within the window.
+ * A fixed-window limit per client address (or `key`). Throws 429 with Retry-After once `limit`
+ * requests have been made within the window.
  */
-export async function enforceRateLimit(event: H3Event, { action, limit, windowSeconds }: RateLimit) {
+export async function enforceRateLimit(event: H3Event, { action, limit, windowSeconds, key }: RateLimit) {
   const db = await useDb()
   const now = new Date()
   const nextReset = new Date(now.getTime() + windowSeconds * 1000)
@@ -22,7 +24,7 @@ export async function enforceRateLimit(event: H3Event, { action, limit, windowSe
   // SET expression against the row as it was, so both CASEs see the old reset_at.
   const [row] = await db
     .insert(rateLimits)
-    .values({ key: `${action}:${clientAddress(event)}`, count: 1, resetAt: nextReset })
+    .values({ key: `${action}:${key ?? clientAddress(event)}`, count: 1, resetAt: nextReset })
     .onConflictDoUpdate({
       target: rateLimits.key,
       set: {

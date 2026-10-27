@@ -186,6 +186,28 @@ export const activityLogs = sqliteTable(
 )
 
 /**
+ * Personal access tokens for the REST API. Only a SHA-256 hash of each token is stored, so a
+ * copy of the database can't be used to call the API; `prefix` (the start of the token) lets
+ * people tell their tokens apart. A token is random and long, so a fast hash is enough here,
+ * unlike a password.
+ */
+export const apiTokens = sqliteTable(
+  'api_tokens',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    tokenHash: text('token_hash').notNull().unique(),
+    prefix: text('prefix').notNull(),
+    lastUsedAt: integer('last_used_at', { mode: 'timestamp' }),
+    createdAt: createdAt(),
+  },
+  table => [
+    index('api_tokens_user_idx').on(table.userId),
+  ],
+)
+
+/**
  * Request counts for rate limiting, one row per action and client address ("login:203.0.113.7").
  * Kept in the database because serverless instances don't share memory.
  */

@@ -164,6 +164,15 @@ export const dateRangeSchema = z.object({
   .refine(range => range.from <= range.to, { message: 'The start must be before the end.', path: ['to'] })
   .refine(range => daysBetween(range.from, range.to) < 366, { message: 'Choose at most a year.', path: ['to'] })
 
+export const tokenCreateSchema = z.object({
+  name: z.string().trim().min(1, 'Name the token, such as “CI script”.').max(60, 'Use at most 60 characters.'),
+})
+
+export const profileSchema = z.object({
+  name: z.string().trim().min(1, 'Enter your name.').max(80, 'Use at most 80 characters.'),
+  timezone: timeZoneSchema,
+}).partial()
+
 export const dashboardQuerySchema = z.object({
   days: z.coerce.number().pipe(z.union([z.literal(7), z.literal(30), z.literal(90)])).default(7),
 })

@@ -8,6 +8,7 @@ const links: NavigationMenuItem[] = [
   { label: 'Projects', icon: 'i-lucide-folder-kanban', to: '/projects' },
   { label: 'Board', icon: 'i-lucide-square-kanban', to: '/board' },
   { label: 'Analytics', icon: 'i-lucide-chart-column', to: '/analytics' },
+  { label: 'Settings', icon: 'i-lucide-settings', to: '/settings' },
 ]
 
 async function signOut() {
@@ -17,6 +18,7 @@ async function signOut() {
 
 const accountMenu = computed<DropdownMenuItem[][]>(() => [
   [{ type: 'label', label: user.value?.email ?? 'Demo account' }],
+  [{ label: 'Settings', icon: 'i-lucide-settings', to: '/settings' }],
   [{ label: 'Sign out', icon: 'i-lucide-log-out', onSelect: signOut }],
 ])
 </script>
