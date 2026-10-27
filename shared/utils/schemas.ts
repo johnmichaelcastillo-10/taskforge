@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { PRIORITIES, PROJECT_STATUSES } from './constants'
+import { PRIORITIES, PROJECT_STATUSES, TAG_COLORS, TASK_STATUSES } from './constants'
 import { isValidTimeZone } from './dates'
 
 // Shared by the forms (instant feedback) and the server routes (the check that counts).
@@ -89,3 +89,58 @@ export const projectFiltersSchema = z.object({
 })
 
 export type ProjectCreateData = z.output<typeof projectCreateSchema>
+
+const id = z.coerce.number().int().positive()
+
+const taskFields = z.object({
+  title: z.string().trim().min(1, 'Enter a title.').max(200, 'Use at most 200 characters.'),
+  description: z.string().trim().max(5000, 'Use at most 5000 characters.'),
+  status: z.enum(TASK_STATUSES, { error: 'Choose a column.' }),
+  priority: z.enum(PRIORITIES, { error: 'Choose a priority.' }),
+  dueDate: optionalDate,
+  // Minutes, entered as hours in the form. Up to 99,999 minutes (about 1,666 hours).
+  estimateMinutes: z.number({ error: 'Enter a number of minutes.' })
+    .int()
+    .min(1, 'Use at least 1 minute.')
+    .max(99_999, 'That’s more than 1,600 hours.')
+    .nullable(),
+  tagIds: z.array(id).max(10, 'Use at most 10 tags.'),
+})
+
+export const taskCreateSchema = taskFields.extend({
+  projectId: id,
+  description: taskFields.shape.description.default(''),
+  status: taskFields.shape.status.default('backlog'),
+  priority: taskFields.shape.priority.default('medium'),
+  dueDate: optionalDate.default(null),
+  estimateMinutes: taskFields.shape.estimateMinutes.default(null),
+  tagIds: taskFields.shape.tagIds.default([]),
+})
+
+/** Any subset of fields. A new `status` puts the task at the bottom of that column. */
+export const taskUpdateSchema = taskFields.partial()
+
+/** Drag and drop, or "Move to…": the column, and the place in it (0 = top). */
+export const taskMoveSchema = z.object({
+  status: z.enum(TASK_STATUSES, { error: 'Choose a column.' }),
+  position: z.number().int().min(0),
+})
+
+export const taskFiltersSchema = z.object({
+  projectId: id.optional(),
+  status: z.enum(TASK_STATUSES).optional(),
+  priority: z.enum(PRIORITIES).optional(),
+  tagId: id.optional(),
+  q: z.string().trim().max(100).optional(),
+})
+
+export const tagSchema = z.object({
+  name: z.string().trim().min(1, 'Enter a name.').max(30, 'Use at most 30 characters.'),
+  color: z.enum(TAG_COLORS).default('gray'),
+})
+
+export const commentSchema = z.object({
+  body: z.string().trim().min(1, 'Write something first.').max(2000, 'Use at most 2000 characters.'),
+})
+
+export type TaskCreateData = z.output<typeof taskCreateSchema>

@@ -84,12 +84,17 @@ No hardcoded numbers. Every panel has a useful empty state.
 - Each task has:
   - a title and description;
   - status and priority;
-  - a due date and an assignee;
+  - a due date;
   - tags and comments;
   - an estimated effort and its actual tracked time.
+- An assignee arrives with project members (3.3): in a one-person workspace it would always be
+  the owner.
 - Drag-and-drop comes only after the task update route and its authorization are tested. The
-  server validates every status transition.
-- Marking a task Done records a completion time; reopening it clears that time.
+  server validates every move: the column must exist and the project must not be archived.
+- Marking a task Done records a completion time; reopening it clears that time and keeps its
+  tracked time. A database CHECK keeps "done" and "has a completion time" in step.
+- Every move can also be made without a mouse, from each card's Move menu. Dragging pauses while
+  filters hide some cards, since the order would be ambiguous.
 
 ### 3.5 Work-session timer
 

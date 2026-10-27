@@ -25,9 +25,12 @@ defineProps<{ project: Project }>()
       {{ project.description }}
     </p>
 
-    <slot />
+    <ProjectProgress
+      :project="project"
+      class="mt-auto"
+    />
 
-    <div class="mt-auto flex flex-wrap items-center gap-x-4 gap-y-2">
+    <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
       <PriorityBadge :priority="project.priority" />
       <DueDate
         v-if="project.deadline"

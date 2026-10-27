@@ -17,6 +17,9 @@ export const TASK_STATUS_LABELS: Record<TaskStatus, string> = {
 export const PRIORITIES = ['low', 'medium', 'high'] as const
 export type Priority = typeof PRIORITIES[number]
 
+export const TAG_COLORS = ['gray', 'red', 'orange', 'amber', 'green', 'teal', 'sky', 'indigo', 'purple', 'pink'] as const
+export type TagColor = typeof TAG_COLORS[number]
+
 export const PROJECT_STATUS_LABELS: Record<ProjectStatus, string> = {
   planning: 'Planning',
   in_progress: 'In progress',

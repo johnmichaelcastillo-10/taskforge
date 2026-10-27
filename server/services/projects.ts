@@ -1,10 +1,19 @@
-import { and, desc, eq, isNotNull, isNull, sql } from 'drizzle-orm'
+import { and, desc, eq, getTableColumns, isNotNull, isNull, sql } from 'drizzle-orm'
 import type { z } from 'zod'
 import { projects } from '../database/schema'
 import type { Executor } from '../utils/db'
 import { logActivity } from './activity'
 
-export type Project = typeof projects.$inferSelect
+/** A project with its task counts, from which progress is worked out. */
+export type Project = typeof projects.$inferSelect & { taskCount: number, doneCount: number }
+
+// Written out in SQL: in a single-table select Drizzle leaves column names unqualified, and an
+// unqualified "id" inside the subquery would mean the task's id, not the project's.
+const withCounts = {
+  ...getTableColumns(projects),
+  taskCount: sql<number>`(select count(*) from tasks as t where t.project_id = "projects"."id")`,
+  doneCount: sql<number>`(select count(*) from tasks as t where t.project_id = "projects"."id" and t.status = 'done')`,
+}
 
 type Filters = z.output<typeof projectFiltersSchema>
 type CreateInput = z.output<typeof projectCreateSchema>
@@ -17,7 +26,7 @@ export function likePattern(text: string): string {
 
 export async function listProjects(db: Executor, ownerId: number, filters: Filters): Promise<Project[]> {
   return db
-    .select()
+    .select(withCounts)
     .from(projects)
     .where(and(
       eq(projects.ownerId, ownerId),
@@ -41,7 +50,7 @@ export async function listProjects(db: Executor, ownerId: number, filters: Filte
  */
 export async function getProject(db: Executor, ownerId: number, id: number): Promise<Project> {
   const [project] = await db
-    .select()
+    .select(withCounts)
     .from(projects)
     .where(and(eq(projects.id, id), eq(projects.ownerId, ownerId)))
   if (!project) {
@@ -61,7 +70,7 @@ export async function createProject(db: Executor, ownerId: number, input: Create
   return db.transaction(async (tx) => {
     const [project] = await tx.insert(projects).values({ ...input, ownerId }).returning()
     await logActivity(tx, { userId: ownerId, projectId: project!.id, action: 'project.created', subject: project!.name })
-    return project!
+    return { ...project!, taskCount: 0, doneCount: 0 }
   })
 }
 
@@ -117,7 +126,7 @@ export async function updateProject(db: Executor, ownerId: number, id: number, i
     if (restoring) {
       await logActivity(tx, { ...base, action: 'project.restored' })
     }
-    return updated!
+    return { ...updated!, taskCount: project.taskCount, doneCount: project.doneCount }
   })
 }
 

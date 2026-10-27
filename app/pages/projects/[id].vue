@@ -16,12 +16,31 @@ const { data: activityData, refresh: refreshActivity } = await useFetch('/api/ac
   query: computed(() => ({ projectId: id.value, limit: 15 })),
 })
 
+const { data: taskData, refresh: refreshTasks } = await useFetch('/api/tasks', {
+  query: computed(() => ({ projectId: id.value })),
+})
+const tasks = computed(() => taskData.value?.tasks ?? [])
+const countByStatus = computed(() => Object.fromEntries(TASK_STATUSES.map(status =>
+  [status, tasks.value.filter(task => task.status === status).length])) as Record<TaskStatus, number>)
+// Open work, soonest due first (undated last), then by column.
+const openTasks = computed(() => tasks.value
+  .filter(task => task.status !== 'done')
+  .toSorted((a, b) => (a.dueDate ?? '9999').localeCompare(b.dueDate ?? '9999')
+    || TASK_STATUSES.indexOf(b.status) - TASK_STATUSES.indexOf(a.status)))
+
+const openTaskId = ref<number | null>(null)
+const panelOpen = ref(false)
+function openTask(taskId: number) {
+  openTaskId.value = taskId
+  panelOpen.value = true
+}
+
 const editing = ref(false)
 const deleting = ref(false)
 const archived = computed(() => !!project.value?.archivedAt)
 
 async function reload() {
-  await Promise.all([refresh(), refreshActivity()])
+  await Promise.all([refresh(), refreshActivity(), refreshTasks()])
 }
 
 async function setArchived(value: boolean) {
@@ -140,6 +159,69 @@ const menu = computed(() => [
             class="text-sm text-muted"
           >No dates set.</span>
         </div>
+        <ProjectProgress
+          :project="project"
+          class="max-w-md"
+        />
+      </section>
+
+      <section class="space-y-3">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <h2 class="font-semibold">
+            Open tasks
+          </h2>
+          <UButton
+            :to="`/board?project=${project.id}`"
+            label="Open the board"
+            icon="i-lucide-square-kanban"
+            color="neutral"
+            variant="outline"
+            size="sm"
+          />
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <UBadge
+            v-for="status in TASK_STATUSES"
+            :key="status"
+            color="neutral"
+            variant="subtle"
+            :label="`${TASK_STATUS_LABELS[status]}: ${countByStatus[status]}`"
+          />
+        </div>
+        <ul
+          v-if="openTasks.length"
+          class="divide-y divide-default rounded-lg border border-default"
+        >
+          <li
+            v-for="task in openTasks"
+            :key="task.id"
+          >
+            <button
+              type="button"
+              class="flex w-full flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 text-left text-sm hover:bg-elevated/50 focus-visible:outline-2 focus-visible:outline-primary"
+              @click="openTask(task.id)"
+            >
+              <span class="min-w-0 flex-1 font-medium">{{ task.title }}</span>
+              <UBadge
+                :label="TASK_STATUS_LABELS[task.status]"
+                color="neutral"
+                variant="outline"
+                size="sm"
+              />
+              <DueDate
+                v-if="task.dueDate"
+                :date="task.dueDate"
+                compact
+              />
+            </button>
+          </li>
+        </ul>
+        <p
+          v-else
+          class="text-sm text-muted"
+        >
+          {{ tasks.length ? 'Every task is done.' : 'No tasks yet. Add them on the board.' }}
+        </p>
       </section>
 
       <section class="space-y-3">
@@ -155,6 +237,12 @@ const menu = computed(() => [
       v-model:open="editing"
       :project="project"
       @saved="reload"
+    />
+    <TaskSlideover
+      v-model:open="panelOpen"
+      :task-id="openTaskId"
+      :readonly="archived"
+      @changed="reload"
     />
     <ConfirmDialog
       v-if="project"

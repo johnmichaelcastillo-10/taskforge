@@ -1,7 +1,7 @@
 import { sql } from 'drizzle-orm'
-import { check, index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core'
+import { check, index, integer, primaryKey, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
 // A relative import: drizzle-kit reads this file outside Nuxt, without its auto-imports.
-import { PRIORITIES, PROJECT_STATUSES } from '../../shared/utils/constants'
+import { PRIORITIES, PROJECT_STATUSES, TAG_COLORS, TASK_STATUSES } from '../../shared/utils/constants'
 
 // Timestamps are Unix seconds (integer), so SQLite's own date functions can group and filter
 // them in analytics queries.
@@ -62,6 +62,80 @@ export const projects = sqliteTable(
     check('projects_status', sql`${table.status} in ('planning', 'in_progress', 'completed')`),
     check('projects_priority', sql`${table.priority} in ('low', 'medium', 'high')`),
     check('projects_dates', sql`${table.startDate} is null or ${table.deadline} is null or ${table.deadline} >= ${table.startDate}`),
+  ],
+)
+
+/**
+ * A task on a project's board. `position` orders it within its column (0 at the top).
+ * `completed_at` is set exactly when the task is done: moving it to Done stamps it, reopening
+ * clears it, and the CHECK keeps the two in step.
+ */
+export const tasks = sqliteTable(
+  'tasks',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    projectId: integer('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+    title: text('title').notNull(),
+    description: text('description').notNull().default(''),
+    status: text('status', { enum: TASK_STATUSES }).notNull().default('backlog'),
+    priority: text('priority', { enum: PRIORITIES }).notNull().default('medium'),
+    dueDate: text('due_date'),
+    estimateMinutes: integer('estimate_minutes'),
+    position: integer('position').notNull().default(0),
+    completedAt: integer('completed_at', { mode: 'timestamp' }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  table => [
+    index('tasks_board_idx').on(table.projectId, table.status, table.position),
+    index('tasks_due_idx').on(table.projectId, table.dueDate),
+    index('tasks_completed_idx').on(table.completedAt),
+    check('tasks_status', sql`${table.status} in ('backlog', 'todo', 'in_progress', 'done')`),
+    check('tasks_priority', sql`${table.priority} in ('low', 'medium', 'high')`),
+    check('tasks_estimate', sql`${table.estimateMinutes} is null or ${table.estimateMinutes} between 1 and 99999`),
+    check('tasks_completed', sql`(${table.status} = 'done') = (${table.completedAt} is not null)`),
+  ],
+)
+
+/** A user's labels for tasks. Names are unique per user, ignoring case. */
+export const tags = sqliteTable(
+  'tags',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    ownerId: integer('owner_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    color: text('color', { enum: TAG_COLORS }).notNull().default('gray'),
+    createdAt: createdAt(),
+  },
+  table => [
+    uniqueIndex('tags_owner_name_idx').on(table.ownerId, sql`${table.name} collate nocase`),
+    check('tags_color', sql.raw(`color in (${TAG_COLORS.map(color => `'${color}'`).join(', ')})`)),
+  ],
+)
+
+export const taskTags = sqliteTable(
+  'task_tags',
+  {
+    taskId: integer('task_id').notNull().references(() => tasks.id, { onDelete: 'cascade' }),
+    tagId: integer('tag_id').notNull().references(() => tags.id, { onDelete: 'cascade' }),
+  },
+  table => [
+    primaryKey({ columns: [table.taskId, table.tagId] }),
+    index('task_tags_tag_idx').on(table.tagId),
+  ],
+)
+
+export const taskComments = sqliteTable(
+  'task_comments',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    taskId: integer('task_id').notNull().references(() => tasks.id, { onDelete: 'cascade' }),
+    authorId: integer('author_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    body: text('body').notNull(),
+    createdAt: createdAt(),
+  },
+  table => [
+    index('task_comments_task_idx').on(table.taskId, table.createdAt),
   ],
 )
 
