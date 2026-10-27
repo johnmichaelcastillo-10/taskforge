@@ -74,7 +74,7 @@ function clearFilters() {
         <UInput
           v-model="search"
           icon="i-lucide-search"
-          placeholder="Search projects"
+          name="q"
           aria-label="Search projects"
           class="sm:ml-auto sm:w-64"
         />

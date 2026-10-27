@@ -8,9 +8,9 @@ defineProps<{ project: Project }>()
     class="group flex flex-col gap-3 rounded-lg border border-default bg-default p-4 transition-colors hover:border-accented hover:bg-elevated/40 focus-visible:outline-2 focus-visible:outline-primary"
   >
     <div class="flex items-start justify-between gap-3">
-      <h3 class="font-semibold group-hover:text-primary">
+      <h2 class="font-semibold group-hover:text-primary">
         {{ project.name }}
-      </h3>
+      </h2>
       <ProjectStatusBadge
         :status="project.status"
         :archived="!!project.archivedAt"

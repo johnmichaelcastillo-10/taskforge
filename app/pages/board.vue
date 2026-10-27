@@ -150,7 +150,7 @@ function clearFilters() {
           <UInput
             v-model="search"
             icon="i-lucide-search"
-            placeholder="Filter tasks"
+            name="q"
             aria-label="Filter tasks"
             class="col-span-2 sm:w-56"
           />
@@ -259,6 +259,7 @@ function clearFilters() {
           >
             <UInput
               v-model="drafts[status]"
+              name="title"
               icon="i-lucide-plus"
               :placeholder="`Add to ${TASK_STATUS_LABELS[status]}`"
               :aria-label="`New task in ${TASK_STATUS_LABELS[status]}`"

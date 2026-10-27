@@ -1,4 +1,3 @@
-# syntax=docker/dockerfile:1
 # Production-like image: the built Nuxt server plus the migration script, run as a non-root
 # user. Local and CI use; Vercel builds the app itself from source.
 

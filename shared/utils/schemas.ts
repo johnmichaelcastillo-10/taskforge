@@ -2,6 +2,10 @@ import { z } from 'zod'
 import { PRIORITIES, PROJECT_STATUSES, TAG_COLORS, TASK_STATUSES } from './constants'
 import { daysBetween, isValidTimeZone } from './dates'
 
+// Zod 4 probes whether `new Function` is allowed, to compile faster validators. The app's
+// Content Security Policy forbids it, so the probe only produces a CSP violation report; skip it.
+z.config({ jitless: true })
+
 // Shared by the forms (instant feedback) and the server routes (the check that counts).
 
 const email = z.string()
