@@ -1,0 +1,43 @@
+# Taskforge, local environment. Same commands on Windows (Docker Desktop with WSL 2) and
+# Linux (Docker Engine with the Compose plugin); see README.md.
+name: taskforge
+
+services:
+  # The production build, as it will run: http://localhost:8094 (APP_PORT).
+  app:
+    build: .
+    image: taskforge:local
+    ports:
+      - "${APP_PORT:-8094}:3000"
+    environment:
+      NUXT_DATABASE_URL: file:/app/data/taskforge.db
+    volumes:
+      - taskforge-data:/app/data
+    restart: unless-stopped
+
+  # Live-reload development and every npm command (lint, typecheck, test, migrations):
+  #   docker compose --profile dev up dev          -> http://localhost:3000 (DEV_PORT)
+  #   docker compose run --rm dev npm test
+  dev:
+    profiles: ["dev"]
+    image: node:24-slim
+    working_dir: /app
+    # On Linux, files it creates (node_modules, .nuxt, data/) belong to this user id, so it must
+    # match yours: 1000 is the usual first user; otherwise set DEV_UID/DEV_GID in .env. Docker
+    # Desktop on Windows accepts any id.
+    user: "${DEV_UID:-1000}:${DEV_GID:-1000}"
+    command: sh -c "[ -d node_modules ] || npm ci; npm run db:migrate && npm run dev -- --host 0.0.0.0 --port 3000"
+    ports:
+      - "${DEV_PORT:-3000}:3000"
+    environment:
+      HOME: /tmp # writable for any user id (npm cache, Nuxt settings)
+      NUXT_DATABASE_URL: file:/app/data/dev.db
+      WATCH_POLLING: "true"
+      npm_config_update_notifier: "false"
+    volumes:
+      - .:/app
+
+volumes:
+  # SQLite database of the app service. Kept by `docker compose down`; removed only with
+  # `docker compose down --volumes` (see README: resetting local data).
+  taskforge-data:

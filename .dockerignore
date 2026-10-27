@@ -1,0 +1,24 @@
+# Rebuilt inside the image
+node_modules
+.nuxt
+.output
+.data
+dist
+
+# Never send secrets or local data to the build
+.env
+.env.*
+!.env.example
+data
+
+# Not needed to build
+.git
+.github
+.vercel
+coverage
+test-results
+playwright-report
+.playwright-cli
+*.log
+*.md
+docs

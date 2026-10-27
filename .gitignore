@@ -1,0 +1,29 @@
+# Dependencies and build output
+node_modules/
+.nuxt/
+.output/
+.data/
+dist/
+
+# Local SQLite databases (Docker keeps its own on a named volume)
+data/
+
+# Environment: copy .env.example to .env, never commit .env
+.env
+.env.*
+!.env.example
+
+# Test and tool output
+coverage/
+test-results/
+playwright-report/
+.playwright-cli/
+*.log
+
+# Deployment link state
+.vercel/
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+.idea/

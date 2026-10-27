@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Lint, typecheck, test, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      # postinstall runs `nuxt prepare`, which generates .nuxt/ (types and the ESLint config).
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+  docker:
+    name: Docker image and health check
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - run: docker compose build app
+      - run: docker compose up -d app
+      # Up to two minutes for the migrations and the first healthy response.
+      - name: Wait for /api/health
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:8094/api/health; then echo; exit 0; fi
+            sleep 2
+          done
+          docker compose logs app
+          exit 1
+      - name: Container runs as the node user
+        run: test "$(docker compose exec -T app id -un)" = node
+      - if: always()
+        run: docker compose logs app && docker compose down --volumes
