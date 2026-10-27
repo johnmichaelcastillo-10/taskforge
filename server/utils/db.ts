@@ -43,6 +43,10 @@ async function connect(): Promise<Database> {
   const config = useRuntimeConfig()
   const url = config.databaseUrl
   const file = sqliteFilePath(url)
+  if (file && process.env.VERCEL) {
+    // Serverless instances have no lasting disk: data written to a file would be lost.
+    throw new Error('NUXT_DATABASE_URL must be a Turso URL (libsql://…) on Vercel. See docs/DEPLOY.md.')
+  }
   if (file) {
     mkdirSync(dirname(file), { recursive: true })
   }

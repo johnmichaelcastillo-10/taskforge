@@ -19,6 +19,13 @@ const authToken = process.env.NUXT_DATABASE_AUTH_TOKEN || undefined
 const migrationsFolder = process.env.MIGRATIONS_DIR
   || resolve(dirname(fileURLToPath(import.meta.url)), '../server/database/migrations')
 
+// On Vercel (the build sets VERCEL=1) a local file would vanish with the build: the database
+// has to be Turso. Fail the deployment rather than ship an app with nowhere to keep its data.
+if (process.env.VERCEL && !/^(libsql|https?|wss?):\/\//.test(url)) {
+  console.error('NUXT_DATABASE_URL must be a Turso URL (libsql://…) on Vercel. See docs/DEPLOY.md.')
+  process.exit(1)
+}
+
 // Same rule as sqliteFilePath() in server/utils/db.ts: only real files need a folder.
 if (url.startsWith('file:')) {
   const path = url.slice('file:'.length).split('?')[0]
