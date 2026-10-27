@@ -32,6 +32,12 @@ export default defineNuxtConfig({
     },
   },
 
+  // Build assets (/_nuxt) are fingerprinted and cached for a year by Nitro. These images keep
+  // their names, so a week: rename a file when it changes.
+  routeRules: {
+    '/screens/**': { headers: { 'cache-control': 'public, max-age=604800' } },
+  },
+
   watchers: {
     chokidar: { usePolling },
   },

@@ -27,7 +27,7 @@ const { user } = useUserSession()
           class="size-4 shrink-0"
         />
         <span>
-          Demo workspace: private to this browser, deleted
+          Demo workspace<span class="hidden sm:inline">: private to this browser,</span> deleted
           <NuxtTime
             :datetime="user.demoExpiresAt"
             relative

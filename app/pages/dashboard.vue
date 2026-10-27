@@ -19,10 +19,19 @@ const { data, error, refresh } = await useFetch('/api/dashboard', { query: compu
 
 const metrics = computed(() => data.value && [
   { label: 'Active projects', value: String(data.value.activeProjectCount), icon: 'i-lucide-folder-kanban', to: '/projects' },
-  { label: `Completed, last ${days.value} days`, value: String(data.value.completedCount), icon: 'i-lucide-circle-check', to: '/analytics' },
-  { label: 'Overdue tasks', value: String(data.value.overdueCount), icon: 'i-lucide-alarm-clock-off', tone: data.value.overdueCount ? 'text-error' : undefined },
+  { label: `Done, last ${days.value} days`, value: String(data.value.completedCount), icon: 'i-lucide-circle-check', to: '/analytics' },
+  { label: 'Overdue', value: String(data.value.overdueCount), icon: 'i-lucide-alarm-clock-off', tone: data.value.overdueCount ? 'text-error' : undefined },
   { label: `Tracked, last ${days.value} days`, value: formatDuration(data.value.trackedSeconds), icon: 'i-lucide-timer', to: '/analytics' },
 ])
+
+// What needs doing: everything overdue first (up to five), then the next few items due in the
+// next two weeks, tasks and project deadlines.
+const UPCOMING_SHOWN = 5
+const attention = computed(() => [
+  ...(data.value?.overdue ?? []).map(task => ({ kind: 'task' as const, overdue: true, id: task.id, title: task.title, projectName: task.projectName, date: task.dueDate! })),
+  ...(data.value?.upcoming ?? []).slice(0, UPCOMING_SHOWN).map(item => ({ ...item, overdue: false })),
+])
+const moreUpcoming = computed(() => Math.max(0, (data.value?.upcoming.length ?? 0) - UPCOMING_SHOWN))
 
 const theme = useChartTheme()
 const chartOptions = useAxisOptions()
@@ -84,24 +93,24 @@ const greeting = computed(() => {
         />
       </div>
 
-      <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div class="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <component
           :is="metric.to ? resolveComponent('NuxtLink') : 'div'"
           v-for="metric in metrics"
           :key="metric.label"
           :to="metric.to"
-          class="rounded-lg border border-default p-4 transition-colors"
+          class="rounded-lg border border-default p-3 transition-colors sm:p-4"
           :class="metric.to ? 'hover:bg-elevated/40 focus-visible:outline-2 focus-visible:outline-primary' : ''"
         >
-          <div class="flex items-center gap-2 text-sm text-muted">
+          <div class="flex items-center gap-1.5 text-xs text-muted sm:gap-2 sm:text-sm">
             <UIcon
               :name="metric.icon"
-              class="size-4"
+              class="size-4 shrink-0"
             />
-            {{ metric.label }}
+            <span class="truncate">{{ metric.label }}</span>
           </div>
           <p
-            class="mt-2 text-2xl font-semibold tabular-nums"
+            class="mt-1 text-xl font-semibold tabular-nums sm:mt-2 sm:text-2xl"
             :class="metric.tone"
           >
             {{ metric.value }}
@@ -110,51 +119,44 @@ const greeting = computed(() => {
       </div>
 
       <div class="grid gap-6 xl:grid-cols-5">
-        <ChartCard
-          class="xl:col-span-3"
-          title="Tasks completed per week"
-          description="The last eight weeks, this one included."
-          :empty="weekly.every(week => week.total === 0)"
-          empty-text="Nothing completed in the last eight weeks."
-          :table="{ columns: ['Week of', 'Completed'], rows: weekly.map(week => [shortDay(week.weekStart), week.total]) }"
-        >
-          <Bar
-            :data="weeklyChart"
-            :options="chartOptions"
-          />
-        </ChartCard>
-
-        <section class="rounded-lg border border-default p-4 xl:col-span-2">
-          <h2 class="mb-3 font-semibold">
-            Coming up
+        <section class="rounded-lg border border-default p-4 xl:col-span-3">
+          <h2 class="mb-3 flex items-center gap-2 font-semibold">
+            Needs attention
+            <UBadge
+              v-if="data.overdueCount"
+              color="error"
+              variant="subtle"
+              :label="`${data.overdueCount} overdue`"
+            />
           </h2>
           <ul
-            v-if="data.upcoming.length"
-            class="space-y-2"
+            v-if="attention.length"
+            class="divide-y divide-default"
           >
             <li
-              v-for="item in data.upcoming"
-              :key="`${item.kind}-${item.id}`"
+              v-for="item in attention"
+              :key="`${item.overdue}-${item.kind}-${item.id}`"
             >
               <component
                 :is="item.kind === 'task' ? 'button' : resolveComponent('NuxtLink')"
                 :type="item.kind === 'task' ? 'button' : undefined"
                 :to="item.kind === 'project' ? `/projects/${item.id}` : undefined"
-                class="flex w-full items-start justify-between gap-3 rounded-md p-2 text-left text-sm hover:bg-elevated/50 focus-visible:outline-2 focus-visible:outline-primary"
+                class="flex w-full items-center justify-between gap-3 py-2.5 text-left text-sm hover:text-primary focus-visible:outline-2 focus-visible:outline-primary"
                 @click="item.kind === 'task' ? openTask(item.id) : undefined"
               >
-                <span class="min-w-0">
-                  <span class="flex items-center gap-1.5 font-medium">
-                    <UIcon
-                      :name="item.kind === 'project' ? 'i-lucide-flag' : 'i-lucide-square-check'"
-                      class="size-4 shrink-0 text-muted"
-                    />
-                    <span class="truncate">{{ item.kind === 'project' ? `${item.title} deadline` : item.title }}</span>
+                <span class="flex min-w-0 items-start gap-2">
+                  <UIcon
+                    :name="item.kind === 'project' ? 'i-lucide-flag' : 'i-lucide-square-check'"
+                    class="mt-0.5 size-4 shrink-0"
+                    :class="item.overdue ? 'text-error' : 'text-muted'"
+                  />
+                  <span class="min-w-0">
+                    <span class="block truncate font-medium">{{ item.kind === 'project' ? `${item.title} deadline` : item.title }}</span>
+                    <span
+                      v-if="item.kind === 'task'"
+                      class="block truncate text-xs text-muted"
+                    >{{ item.projectName }}</span>
                   </span>
-                  <span
-                    v-if="item.kind === 'task'"
-                    class="block truncate pl-5.5 text-xs text-muted"
-                  >{{ item.projectName }}</span>
                 </span>
                 <DueDate
                   :date="item.date"
@@ -165,54 +167,25 @@ const greeting = computed(() => {
             </li>
           </ul>
           <p
-            v-else
+            v-if="data.overdueCount > data.overdue.length || moreUpcoming"
+            class="mt-2 text-xs text-muted"
+          >
+            <template v-if="data.overdueCount > data.overdue.length">
+              Showing {{ data.overdue.length }} of {{ data.overdueCount }} overdue tasks.
+            </template>
+            <template v-if="moreUpcoming">
+              And {{ moreUpcoming }} more due in the next two weeks.
+            </template>
+          </p>
+          <p
+            v-if="!attention.length"
             class="text-sm text-muted"
           >
-            Nothing due in the next two weeks.
+            Nothing overdue, and nothing due in the next two weeks.
           </p>
         </section>
-      </div>
 
-      <section
-        v-if="data.overdue.length"
-        class="rounded-lg border border-error/40 p-4"
-      >
-        <h2 class="mb-3 flex items-center gap-2 font-semibold text-error">
-          <UIcon
-            name="i-lucide-alarm-clock-off"
-            class="size-5"
-          />
-          Overdue
-          <span
-            v-if="data.overdueCount > data.overdue.length"
-            class="text-sm font-normal text-muted"
-          >(showing {{ data.overdue.length }} of {{ data.overdueCount }})</span>
-        </h2>
-        <ul class="divide-y divide-default">
-          <li
-            v-for="task in data.overdue"
-            :key="task.id"
-          >
-            <button
-              type="button"
-              class="flex w-full flex-wrap items-center justify-between gap-2 py-2 text-left text-sm hover:text-primary focus-visible:outline-2 focus-visible:outline-primary"
-              @click="openTask(task.id)"
-            >
-              <span>
-                <span class="font-medium">{{ task.title }}</span>
-                <span class="text-muted"> · {{ task.projectName }}</span>
-              </span>
-              <DueDate
-                :date="task.dueDate!"
-                compact
-              />
-            </button>
-          </li>
-        </ul>
-      </section>
-
-      <div class="grid gap-6 xl:grid-cols-5">
-        <section class="rounded-lg border border-default p-4 xl:col-span-3">
+        <section class="rounded-lg border border-default p-4 xl:col-span-2">
           <div class="mb-3 flex items-center justify-between">
             <h2 class="font-semibold">
               Project progress
@@ -252,6 +225,23 @@ const greeting = computed(() => {
             :actions="[{ label: 'Create a project', to: '/projects', icon: 'i-lucide-plus' }]"
           />
         </section>
+      </div>
+
+      <div class="grid gap-6 xl:grid-cols-5">
+        <ChartCard
+          class="xl:col-span-3"
+          title="Tasks completed per week"
+          description="The last eight weeks, this one included."
+          height="h-56"
+          :empty="weekly.every(week => week.total === 0)"
+          empty-text="Nothing completed in the last eight weeks."
+          :table="{ columns: ['Week of', 'Completed'], rows: weekly.map(week => [shortDay(week.weekStart), week.total]) }"
+        >
+          <Bar
+            :data="weeklyChart"
+            :options="chartOptions"
+          />
+        </ChartCard>
 
         <section class="rounded-lg border border-default p-4 xl:col-span-2">
           <h2 class="mb-3 font-semibold">

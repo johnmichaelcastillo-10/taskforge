@@ -104,7 +104,8 @@ describe('analytics and the dashboard', async () => {
   it('renders the dashboard and analytics pages', async () => {
     const { cookie } = await account('UTC')
     const dashboard = await (await get('/dashboard', cookie)).text()
-    expect(dashboard).toContain('Overdue tasks')
+    expect(dashboard).toContain('Needs attention')
+    expect(dashboard).toContain('Nothing overdue, and nothing due in the next two weeks.')
     expect(dashboard).toContain('No active projects')
     const analytics = await (await get('/analytics', cookie)).text()
     expect(analytics).toContain('Tasks completed per day')

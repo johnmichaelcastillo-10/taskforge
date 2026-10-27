@@ -151,6 +151,7 @@ function clearFilters() {
             v-model="search"
             icon="i-lucide-search"
             name="q"
+            placeholder="Filter tasks"
             aria-label="Filter tasks"
             class="col-span-2 sm:w-56"
           />

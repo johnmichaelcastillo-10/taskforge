@@ -75,6 +75,7 @@ function clearFilters() {
           v-model="search"
           icon="i-lucide-search"
           name="q"
+          placeholder="Search projects"
           aria-label="Search projects"
           class="sm:ml-auto sm:w-64"
         />

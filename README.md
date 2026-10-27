@@ -1,31 +1,77 @@
 # Taskforge
 
-Project management and time tracking for developers: projects, a Kanban board, work-session
-timers and productivity analytics.
+Project management and time tracking for developers. Taskforge has:
+- projects with deadlines and progress;
+- a Kanban board;
+- a one-click work timer;
+- analytics that show where the week went.
 
-> **Status: in development.** Demo access, accounts and the app shell work. Projects, tasks,
-> timers and analytics arrive phase by phase; see [docs/SPEC.md](docs/SPEC.md).
+It runs in the browser, and as a desktop app for Windows and Linux.
 
-## Features so far
+![The Taskforge landing page, with the board beside the headline](docs/screenshots/landing.webp)
 
-- **Try the demo:** one click creates a private workspace with no sign-up. It's deleted after
-  three days, and its session cookie expires with it.
-- **Accounts:** email and password sign-in, with passwords hashed using scrypt. Sign-up is off
-  unless `NUXT_PUBLIC_REGISTRATION_ENABLED=true`, so the hosted copy takes demo visitors only.
-- **Server-side checks:** every protected request loads the account from the database. A
-  session whose account was deleted, or whose demo expired, is signed out.
-- **Rate limits** on sign-in, sign-up and demo creation, counted in the database so they hold
-  across serverless instances.
-- **App shell:** a responsive sidebar layout with dark mode.
+## Features
 
-## Stack
+- **Try the demo:** one click opens a private workspace with sample projects, tasks and tracked
+  time, no sign-up needed. It's deleted after three days.
+- **Projects:**
+  - status, priority, start date and deadline;
+  - progress worked out from their tasks, and an activity history;
+  - archiving makes a project read-only until it's restored.
+- **Kanban board:** Backlog, To do, In progress and Done.
+  - Drag and drop, or move cards from the keyboard with each card's Move menu.
+  - Tasks have tags, due dates, estimates and comments, and quick add per column.
+  - Finishing a task stamps its completion time; reopening it clears that time.
+- **Work timer:** start it from any task and switch tasks without losing a second.
+  - Durations are measured by the server.
+  - One timer runs at a time, guaranteed by the database.
+  - The running timer shows in the top bar on every page.
+- **Dashboard:** active projects, work done and time tracked over 7, 30 or 90 days. What's
+  overdue and coming up comes first, then project progress, a weekly chart and recent activity.
+- **Analytics:** for any date range, all in your time zone:
+  - tasks completed per day and hours tracked per week;
+  - estimated against tracked time;
+  - tasks by column and project progress over time.
+- **REST API:** `/api/v1` with personal access tokens, stored hashed. See
+  [docs/API.md](docs/API.md).
+- **Desktop app** for Windows and Linux, built with Tauri:
+  - the running timer in the system tray;
+  - notifications;
+  - a global shortcut (Ctrl+Shift+Space).
+- **Dark mode**, responsive down to phone width, and keyboard and screen-reader friendly (charts
+  come with data tables).
+
+| Dashboard | Board (dark mode) |
+|---|---|
+| ![Dashboard with overdue tasks first, then project progress](docs/screenshots/dashboard.webp) | ![Kanban board in dark mode](docs/screenshots/board-dark.webp) |
+| **Project** | **Analytics** |
+| ![A project's page with progress, open tasks and activity](docs/screenshots/project.webp) | ![Charts of completed tasks, tracked hours and estimates](docs/screenshots/analytics.webp) |
+
+<p align="center"><img src="docs/screenshots/mobile.webp" width="450" alt="The dashboard and the board on a phone"></p>
+
+## How it's built
 
 - **Framework:** Nuxt 4 (Vue 3, TypeScript), with server routes for the backend.
-- **UI:** Nuxt UI 4 and Tailwind CSS 4.
-- **Database:** SQLite through libSQL, with Drizzle ORM and SQL migrations. It is a local file
-  in development and Docker, and Turso in production.
-- **Tests and CI:** Vitest, ESLint, vue-tsc, GitHub Actions.
-- **Containers:** Docker with Compose; Node 24.
+- **UI:** Nuxt UI 4 and Tailwind CSS 4; Chart.js for the charts; vue-draggable-plus for the
+  board.
+- **Data:** SQLite through libSQL, with Drizzle ORM and SQL migrations. It's a local file in
+  development, and Turso when hosted.
+- **Validation:** Zod schemas, shared by the forms and the server.
+- **Security:** a strict CSP with nonces, rate limits stored in the database, sealed session
+  cookies, and scrypt password hashes.
+- **Desktop:** Tauri 2 (Rust), wrapping the hosted site.
+- **Tests:** Vitest, with unit tests and end-to-end tests against the production build. GitHub
+  Actions runs lint, type check, tests, the build, a Docker health check, and the desktop
+  installers.
+
+More detail:
+
+| Document | What's in it |
+|---|---|
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Request flow, data model, time zones, security and trade-offs |
+| [docs/API.md](docs/API.md) | The REST API |
+| [docs/DEPLOY.md](docs/DEPLOY.md) | Deploying to Vercel and Turso |
+| [docs/SPEC.md](docs/SPEC.md) | The original specification and roadmap |
 
 ## Requirements
 
@@ -107,6 +153,26 @@ Use the same service for every npm command:
 The end-to-end tests build the app once, then start a server per test file, each on its own
 temporary SQLite file with migrations applied.
 
+## Desktop app
+
+The desktop app (`desktop/`) opens a Taskforge site in its own window. GitHub Actions builds the
+installers ([.github/workflows/desktop.yml](.github/workflows/desktop.yml)):
+- Windows: `.msi` and `.exe`;
+- Linux: `.deb` and `.AppImage`.
+
+Set the repository variable `TASKFORGE_URL` to the site the installers should open. Pushing a
+tag such as `v1.0.0` drafts a release with them attached.
+
+To build the Linux package locally with only Docker, run this from `desktop/`. In PowerShell,
+use `-v "${PWD}:/desktop"`.
+
+```bash
+docker run --rm -v "$PWD:/desktop" -w /desktop -e TASKFORGE_URL=https://your-site node:24-slim sh scripts/build-linux.sh
+```
+
+Without `TASKFORGE_URL`, the app opens the local Docker app at <http://localhost:8094>. Point the
+site's download page at the published installers with `NUXT_PUBLIC_DOWNLOADS_URL`.
+
 ## Resetting local data
 
 > **Warning:** this permanently deletes every account and all their data in the local app, and
@@ -144,32 +210,19 @@ Settings live in `.env`, copied from [.env.example](.env.example). Never commit 
 | `NUXT_PUBLIC_REGISTRATION_ENABLED` | `false` (`true` in dev) | Allows sign-up |
 | `NUXT_DEMO_TTL_HOURS` | `72` | How long a demo account lives |
 | `NUXT_TRUST_PROXY` | `false` | Read client addresses from `X-Forwarded-For`; only behind a proxy that sets it (Vercel) |
+| `NUXT_PUBLIC_DOWNLOADS_URL` | *(empty)* | Where the download page links for the desktop installers |
 | `NUXT_DATABASE_URL` | `file:./data/taskforge.db` | Database URL for running outside Docker; Turso uses `libsql://…` |
 | `NUXT_DATABASE_AUTH_TOKEN` | *(empty)* | Turso auth token |
-
-## Project layout
-
-```text
-app/                 Vue pages, layouts, components and styles
-server/api/          HTTP routes (/api/...)
-server/database/     Drizzle schema and generated SQL migrations
-server/utils/        Server helpers, auto-imported (database, accounts, rate limits, validation)
-shared/              Validation schemas and types used by both the app and the server
-scripts/             Migrations, and the containers' start scripts
-tests/unit/          Unit tests
-tests/e2e/           Tests against the built server
-docs/SPEC.md         Product specification and roadmap
-```
 
 ## Troubleshooting
 
 - **Port already in use:** set another `APP_PORT` or `DEV_PORT` in `.env`, then run
   `docker compose up -d` again.
 - **Slow dev server on Windows:** a project in a Windows folder (`C:\…`) reaches the container
-  through a slower file share, so the dev service polls for changes. Cloning inside WSL
-  (for example `~/projects/taskforge` in Ubuntu) and running Docker from there is much faster.
-- **Edits don't reload:** make sure the `dev` service is running (`docker compose ps`).
-  Polling is on by default (`WATCH_POLLING=true` in `compose.yaml`).
+  through a slower file share, so the dev service polls for changes. Cloning inside WSL (for
+  example `~/projects/taskforge` in Ubuntu) and running Docker from there is much faster.
+- **Edits don't reload:** make sure the `dev` service is running (`docker compose ps`). Polling is
+  on by default (`WATCH_POLLING=true` in `compose.yaml`).
 - **`EACCES` / permission denied on Linux:** the dev container runs as user id 1000 by default,
   the usual id of the first Linux user. If `id -u` shows something else, add your ids to `.env`:
 
@@ -180,9 +233,10 @@ docs/SPEC.md         Product specification and roadmap
 
   Files created earlier by another user can be handed back with
   `sudo chown -R "$(id -u):$(id -g)" node_modules .nuxt .output data`.
-- **Signed out after a restart:** the session secret changed. Keep `NUXT_SESSION_PASSWORD`
-  fixed in `.env`, or leave it empty and keep the volume (or `data/session-password` in
-  development).
+- **"Too many attempts":** sign-in, sign-up and demo creation are rate-limited per address. Wait
+  for the time the message gives.
+- **Signed out after a restart:** the session secret changed. Keep `NUXT_SESSION_PASSWORD` fixed
+  in `.env`, or leave it empty and keep the volume (or `data/session-password` in development).
 - **App container unhealthy:** check `docker compose logs app`. A failed migration stops the
   container before the server starts, and the error is in the log.
 - **Docker Hub download errors** (`connection reset`, `EOF`): run the command again; pulls

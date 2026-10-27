@@ -1,5 +1,11 @@
 # Taskforge: project specification
 
+> **Status (October 2026):** phases 1 to 7, 9 and 10 are built and tested. For phase 8, the
+> Vercel build and the deployment guide ([DEPLOY.md](DEPLOY.md)) are ready, but no live
+> deployment has been made yet, and the app hasn't yet run against a real Turso database.
+> Where the build departs from this plan (no assignees yet, archiving as a flag rather than a
+> status, no PWA), [ARCHITECTURE.md](ARCHITECTURE.md) explains why.
+
 ## 1. Overview
 
 **Taskforge** is a project management and time tracking app for developers: projects, a Kanban
