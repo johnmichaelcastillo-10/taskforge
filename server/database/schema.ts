@@ -1,5 +1,7 @@
 import { sql } from 'drizzle-orm'
 import { check, index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core'
+// A relative import: drizzle-kit reads this file outside Nuxt, without its auto-imports.
+import { PRIORITIES, PROJECT_STATUSES } from '../../shared/utils/constants'
 
 // Timestamps are Unix seconds (integer), so SQLite's own date functions can group and filter
 // them in analytics queries.
@@ -32,6 +34,58 @@ export const users = sqliteTable(
     ),
     // For deleting expired demos.
     index('users_demo_expires_at_idx').on(table.demoExpiresAt),
+  ],
+)
+
+/**
+ * A project belongs to one user. Archiving is separate from the status, so unarchiving restores
+ * whatever the status was; an archived project is read-only. Dates are calendar days
+ * ('YYYY-MM-DD'), which have no time zone.
+ */
+export const projects = sqliteTable(
+  'projects',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    ownerId: integer('owner_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    description: text('description').notNull().default(''),
+    status: text('status', { enum: PROJECT_STATUSES }).notNull().default('planning'),
+    priority: text('priority', { enum: PRIORITIES }).notNull().default('medium'),
+    startDate: text('start_date'),
+    deadline: text('deadline'),
+    archivedAt: integer('archived_at', { mode: 'timestamp' }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  table => [
+    index('projects_owner_idx').on(table.ownerId, table.archivedAt),
+    check('projects_status', sql`${table.status} in ('planning', 'in_progress', 'completed')`),
+    check('projects_priority', sql`${table.priority} in ('low', 'medium', 'high')`),
+    check('projects_dates', sql`${table.startDate} is null or ${table.deadline} is null or ${table.deadline} >= ${table.startDate}`),
+  ],
+)
+
+/**
+ * What happened, for the dashboard and project pages. `subject` keeps the name of the project or
+ * task at the time, so entries still read correctly after a rename or delete; `detail` holds
+ * extra facts such as the columns a task moved between.
+ */
+export const activityLogs = sqliteTable(
+  'activity_logs',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    projectId: integer('project_id').references(() => projects.id, { onDelete: 'cascade' }),
+    // No foreign key: an entry about a task outlives the task ("deleted task X").
+    taskId: integer('task_id'),
+    action: text('action').notNull(),
+    subject: text('subject').notNull(),
+    detail: text('detail', { mode: 'json' }).$type<Record<string, string>>(),
+    createdAt: createdAt(),
+  },
+  table => [
+    index('activity_user_idx').on(table.userId, table.createdAt),
+    index('activity_project_idx').on(table.projectId, table.createdAt),
   ],
 )
 

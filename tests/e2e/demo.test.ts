@@ -1,3 +1,4 @@
+import { fetch } from '@nuxt/test-utils/e2e'
 import { describe, expect, it } from 'vitest'
 import { cookiesFrom, get, postJson, useTestServer } from './server'
 
@@ -103,5 +104,9 @@ describe('demo access', async () => {
     expect(Number(response.headers.get('retry-after'))).toBeGreaterThan(0)
     const row = await db.execute(`select count from rate_limits where key like 'demo:%'`)
     expect(Number(row.rows[0]!.count)).toBe(11)
+
+    // NUXT_TRUST_PROXY is off here, so a forged X-Forwarded-For doesn't buy a new allowance.
+    const forged = await fetch('/api/auth/demo', { method: 'POST', headers: { 'x-forwarded-for': '203.0.113.9' } })
+    expect(forged.status).toBe(429)
   })
 })

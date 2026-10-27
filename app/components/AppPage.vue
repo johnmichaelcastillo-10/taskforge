@@ -1,5 +1,6 @@
 <script setup lang="ts">
-// One page of the signed-in app: the top bar (title, demo notice) and a scrolling body.
+// One page of the signed-in app: the top bar (title, page actions, demo notice) and a
+// scrolling body.
 const props = defineProps<{ title: string }>()
 
 useSeoMeta({ title: () => props.title })
@@ -12,6 +13,7 @@ const { user } = useUserSession()
     <template #header>
       <UDashboardNavbar :title="title">
         <template #right>
+          <slot name="actions" />
           <UColorModeButton />
         </template>
       </UDashboardNavbar>

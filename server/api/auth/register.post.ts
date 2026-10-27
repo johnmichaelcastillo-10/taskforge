@@ -7,11 +7,11 @@ export default defineEventHandler(async (event) => {
   }
   await enforceRateLimit(event, { action: 'register', limit: 5, windowSeconds: 60 * 60 })
 
-  const { name, email, password } = await readValidBody(event, registerSchema)
+  const { name, email, password, timezone } = await readValidBody(event, registerSchema)
   const db = await useDb()
   const [account] = await db
     .insert(users)
-    .values({ name, email, passwordHash: await hashPassword(password) })
+    .values({ name, email, timezone, passwordHash: await hashPassword(password) })
     .onConflictDoNothing({ target: users.email })
     .returning()
 

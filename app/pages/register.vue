@@ -20,7 +20,7 @@ const fields: AuthFormField[] = [
 async function register({ data }: FormSubmitEvent<RegisterInput>) {
   failure.value = undefined
   try {
-    await $fetch('/api/auth/register', { method: 'POST', body: data })
+    await $fetch('/api/auth/register', { method: 'POST', body: { ...data, timezone: browserTimeZone() } })
     await refreshSession()
     await navigateTo('/dashboard')
   }

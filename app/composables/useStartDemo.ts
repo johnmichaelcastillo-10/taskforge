@@ -7,7 +7,7 @@ export function useStartDemo() {
   async function startDemo() {
     starting.value = true
     try {
-      await $fetch('/api/auth/demo', { method: 'POST' })
+      await $fetch('/api/auth/demo', { method: 'POST', body: { timezone: browserTimeZone() } })
       await refreshSession()
       await navigateTo('/dashboard')
     }

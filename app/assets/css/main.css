@@ -1,8 +1,13 @@
 @import "tailwindcss";
 @import "@nuxt/ui";
 
-/* Light mode uses the 600 shade of the primary color (Nuxt UI defaults to 500), so white text on
-   primary buttons passes WCAG AA contrast. Dark mode keeps Nuxt UI's 400 with dark text. */
+/* Light mode: Nuxt UI uses the 500 shades, which are too pale for text on white (badges, links,
+   white-on-colour buttons). Darker shades pass WCAG AA; amber needs 700. Dark mode keeps Nuxt
+   UI's 400 shades, which already contrast with the dark background. */
 :root:not(.dark) {
   --ui-primary: var(--ui-color-primary-600);
+  --ui-info: var(--ui-color-info-600);
+  --ui-success: var(--ui-color-success-700);
+  --ui-warning: var(--ui-color-warning-700);
+  --ui-error: var(--ui-color-error-600);
 }

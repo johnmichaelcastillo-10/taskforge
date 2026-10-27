@@ -70,3 +70,33 @@ export function postJson(path: string, body: unknown = {}, cookie?: string) {
 export function get(path: string, cookie?: string) {
   return fetch(path, { headers: cookie ? { cookie } : {}, redirect: 'manual' })
 }
+
+/** Any method with a JSON body and a Cookie header. */
+export function send(method: string, path: string, cookie: string, body?: unknown) {
+  return fetch(path, {
+    method,
+    headers: { 'content-type': 'application/json', cookie },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  })
+}
+
+let visitor = 0
+
+/**
+ * A new demo visitor: their cookie and account id. Each comes from its own address
+ * (X-Forwarded-For), so files that start many demos stay under the rate limit when they run
+ * the server with NUXT_TRUST_PROXY=true. Without it, all of them share one allowance.
+ */
+export async function newDemo(timezone = 'UTC') {
+  visitor += 1
+  const response = await fetch('/api/auth/demo', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-forwarded-for': `198.51.100.${visitor}` },
+    body: JSON.stringify({ timezone }),
+  })
+  if (response.status !== 201) {
+    throw new Error(`Demo creation failed: ${response.status}`)
+  }
+  const { user } = await response.json()
+  return { cookie: cookiesFrom(response), userId: user.id as number }
+}

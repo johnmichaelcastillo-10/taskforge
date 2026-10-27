@@ -15,6 +15,13 @@
       "when": 1793082387265,
       "tag": "0001_flimsy_prima",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1793086799332,
+      "tag": "0002_smooth_jubilee",
+      "breakpoints": true
     }
   ]
 }

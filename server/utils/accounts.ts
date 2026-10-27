@@ -38,6 +38,7 @@ export function toSessionUser(account: Account): User {
     name: account.name,
     email: account.email,
     isDemo: account.isDemo,
+    timezone: account.timezone,
     demoExpiresAt: account.demoExpiresAt?.getTime() ?? null,
   }
 }

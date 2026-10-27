@@ -6,6 +6,8 @@ declare module '#auth-utils' {
     name: string
     email: string | null
     isDemo: boolean
+    /** IANA name, such as 'Asia/Manila'. Dates ("today", overdue) are worked out in it. */
+    timezone: string
     /** Milliseconds since the epoch; null for regular accounts. */
     demoExpiresAt: number | null
   }

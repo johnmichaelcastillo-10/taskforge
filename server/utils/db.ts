@@ -4,7 +4,10 @@ import { createClient, type Client } from '@libsql/client'
 import { drizzle, type LibSQLDatabase } from 'drizzle-orm/libsql'
 import * as schema from '../database/schema'
 
-type Database = LibSQLDatabase<typeof schema>
+export type Database = LibSQLDatabase<typeof schema>
+
+/** The database, or a transaction on it: what services accept so they can be composed. */
+export type Executor = Database | Parameters<Parameters<Database['transaction']>[0]>[0]
 
 // The setup promise, not the client: two requests arriving together on a cold start share
 // one connection instead of racing to open two.
@@ -20,9 +23,13 @@ export function sqliteFilePath(url: string): string | null {
 }
 
 /**
- * The shared Drizzle client. Local SQLite files get their folder created, foreign keys
- * enforced (SQLite leaves them off per connection by default) and WAL journaling, so readers
- * don't block the writer.
+ * The shared Drizzle client. Local SQLite files get their folder created and WAL journaling,
+ * so readers don't block the writer.
+ *
+ * Deletes rely on ON DELETE CASCADE. libSQL, unlike stock SQLite, enforces foreign keys on
+ * every connection by default, including the extra ones the client's pool opens for
+ * transactions; the PRAGMA below only makes that explicit. tests/e2e/projects.test.ts checks
+ * the cascade.
  */
 export function useDb(): Promise<Database> {
   ready ??= connect().catch((error) => {
