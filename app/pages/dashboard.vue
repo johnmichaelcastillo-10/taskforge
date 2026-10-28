@@ -252,7 +252,9 @@ const greeting = computed(() => {
       </div>
     </div>
 
-    <TaskSlideover
+    <LazyTaskSlideover
+
+      v-if="openTaskId !== null"
       v-model:open="panelOpen"
       :task-id="openTaskId"
       @changed="refresh"
