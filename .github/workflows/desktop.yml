@@ -58,6 +58,29 @@ jobs:
       - name: Build
         run: npx tauri build --config src-tauri/tauri.site.conf.json --bundles ${{ matrix.bundles }}
 
+      # Each installer must install on a clean machine and the app must keep running once started.
+      - name: Install the MSI and start the app (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $msi = Get-ChildItem src-tauri/target/release/bundle/msi/*.msi | Select-Object -First 1
+          Start-Process msiexec.exe -ArgumentList '/i', "`"$($msi.FullName)`"", '/qn', '/norestart', '/l*v', 'install.log' -Wait
+          $exe = Get-ChildItem "$env:ProgramFiles\Taskforge" -Filter *.exe -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $exe) { Get-Content install.log -Tail 40; throw 'The MSI did not install the app.' }
+          $app = Start-Process $exe.FullName -PassThru
+          Start-Sleep -Seconds 15
+          if ($app.HasExited) { throw "The app exited after starting (code $($app.ExitCode))." }
+          Stop-Process -Id $app.Id
+          "Installed and running: $($exe.FullName)"
+      - name: Install the .deb and start the app (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get install -y ./src-tauri/target/release/bundle/deb/*.deb xvfb
+          code=0
+          xvfb-run -a timeout 20 taskforge-desktop || code=$?
+          echo "exit code $code (124 = still running after 20 seconds)"
+          test "$code" = 124
+
       - uses: actions/upload-artifact@v7
         with:
           name: taskforge-${{ runner.os }}
