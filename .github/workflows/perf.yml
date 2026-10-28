@@ -1,7 +1,8 @@
 name: Mobile performance
 
-# Lighthouse (mobile) on the main pages of any commit, built and served on a clean runner with a
-# demo session: three runs per page, medians reported. For comparing two versions fairly.
+# Lighthouse (mobile) on the main pages, built and served on a clean runner with a demo session.
+# Give a `base` too to compare two versions fairly: both are built and served on the same runner,
+# and their runs alternate, so the machine's speed affects them alike. Medians are reported.
 
 on:
   workflow_dispatch:
@@ -10,6 +11,14 @@ on:
         description: Commit, branch or tag to measure
         required: true
         default: main
+      base:
+        description: Optional second version to compare it with
+        required: false
+        default: ''
+      runs:
+        description: Runs per page and version
+        required: false
+        default: '5'
 
 permissions:
   contents: read
@@ -17,57 +26,77 @@ permissions:
 jobs:
   lighthouse:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     env:
-      NUXT_DATABASE_URL: file:./data/perf.db
       NUXT_SESSION_PASSWORD: perf-benchmark-session-password-0123456789
-      PORT: 3000
     steps:
+      # The whole history, so short commit hashes resolve.
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.ref }}
+          fetch-depth: 0
       - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
-      - run: npm ci
-      - run: npm run build
-      - run: node scripts/migrate.mjs
+      - run: npm install --global lighthouse@12
 
-      - name: Start the server and open a demo session
+      - name: Build and start each version, each with a demo session
+        env:
+          REF: ${{ inputs.ref }}
+          BASE: ${{ inputs.base }}
         run: |
-          node .output/server/index.mjs > server.log 2>&1 &
-          for i in $(seq 1 30); do curl -fsS http://localhost:3000/api/health && break; sleep 1; done
-          curl -fsS -c cookies.txt -H 'content-type: application/json' -d '{"timezone":"UTC"}' http://localhost:3000/api/auth/demo > /dev/null
-          cookie=$(awk '$6 == "nuxt-session" { print "nuxt-session=" $7 }' cookies.txt)
-          echo "{\"Cookie\": \"$cookie\"}" > headers.json
+          start() {
+            name=$1 ref=$2 port=$3
+            git worktree add --detach "sides/$name" "$ref"
+            (
+              cd "sides/$name"
+              export NUXT_DATABASE_URL=file:./data/perf.db PORT=$port
+              npm ci --no-audit --no-fund
+              npm run build
+              node scripts/migrate.mjs
+              nohup node .output/server/index.mjs > server.log 2>&1 &
+              for i in $(seq 1 30); do curl -fsS "http://localhost:$port/api/health" && break; sleep 1; done
+              curl -fsS -c cookies.txt -H 'content-type: application/json' -d '{"timezone":"UTC"}' "http://localhost:$port/api/auth/demo" > /dev/null
+              cookie=$(awk '$6 == "nuxt-session" { print "nuxt-session=" $7 }' cookies.txt)
+              echo "{\"Cookie\": \"$cookie\"}" > headers.json
+            )
+            echo "$name $port" >> sides.txt
+          }
+          start ref "$REF" 3000
+          if [ -n "$BASE" ]; then start base "$BASE" 3001; fi
 
-      - name: Lighthouse, mobile, three runs per page
+      - name: Lighthouse, mobile
+        env:
+          RUNS: ${{ inputs.runs }}
         run: |
+          mkdir reports
           for page in / /dashboard /board /analytics /projects; do
-            for run in 1 2 3; do
-              # Lighthouse occasionally fails to record a trace (NO_NAVSTART): try a run twice.
-              for attempt in 1 2; do
-                npx --yes lighthouse@12 "http://localhost:3000$page" --quiet --output=json \
-                  --output-path="lh-$(echo "$page" | tr / _)-$run.json" --extra-headers=headers.json \
-                  --only-categories=performance --chrome-flags="--headless=new --no-sandbox" && break
-                rm -f "lh-$(echo "$page" | tr / _)-$run.json"
-              done
+            for run in $(seq 1 "$RUNS"); do
+              while read -r name port; do
+                out="reports/$name~$(echo "$page" | tr / _)~$run.json"
+                # Lighthouse occasionally fails to record a trace (NO_NAVSTART): try a run twice.
+                for attempt in 1 2; do
+                  lighthouse "http://localhost:$port$page" --quiet --output=json --output-path="$out" \
+                    --extra-headers="sides/$name/headers.json" --only-categories=performance \
+                    --chrome-flags="--headless=new --no-sandbox" < /dev/null && break
+                  rm -f "$out"
+                done
+              done < sides.txt
             done
           done
           node -e '
             const fs = require("fs")
             const median = values => values.sort((a, b) => a - b)[Math.floor(values.length / 2)]
             const groups = {}
-            for (const file of fs.readdirSync(".").filter(f => /^lh-.*\.json$/.test(f))) {
-              const page = file.replace(/^lh-|-\d\.json$/g, "").replace(/_/g, "/") || "/"
-              const r = JSON.parse(fs.readFileSync(file))
-              ;(groups[page] ??= []).push(r)
+            for (const file of fs.readdirSync("reports")) {
+              const [name, page] = file.split("~")
+              const key = `${(page.replace(/_/g, "/") || "/").padEnd(11)} ${name.padEnd(4)}`
+              ;(groups[key] ??= []).push(JSON.parse(fs.readFileSync(`reports/${file}`)))
             }
-            for (const [page, runs] of Object.entries(groups)) {
-              const m = key => median(runs.map(r => r.audits[key].numericValue))
+            for (const [key, runs] of Object.entries(groups).sort()) {
+              const m = audit => median(runs.map(r => r.audits[audit].numericValue))
               const score = median(runs.map(r => r.categories.performance.score * 100))
               const js = median(runs.map(r => r.audits["network-requests"].details.items
                 .filter(i => i.resourceType === "Script").reduce((s, i) => s + i.transferSize, 0)))
-              console.log(`${page.padEnd(11)} (${runs.length} runs) score ${Math.round(score)}  FCP ${Math.round(m("first-contentful-paint"))}ms  LCP ${Math.round(m("largest-contentful-paint"))}ms  TBT ${Math.round(m("total-blocking-time"))}ms  JS ${Math.round(js / 1024)}KB`)
+              console.log(`${key} (${runs.length} runs) score ${Math.round(score)}  FCP ${Math.round(m("first-contentful-paint"))}ms  LCP ${Math.round(m("largest-contentful-paint"))}ms  TBT ${Math.round(m("total-blocking-time"))}ms  JS ${Math.round(js / 1024)}KB`)
             }'
