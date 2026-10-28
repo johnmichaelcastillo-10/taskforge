@@ -8,6 +8,9 @@ Project management and time tracking for developers. Taskforge has:
 
 It runs in the browser, and as a desktop app for Windows and Linux.
 
+**Live:** <https://taskforge-seven-flax.vercel.app>. Choose **Try the demo**: no sign-up needed.
+**Desktop installers:** [latest release](https://github.com/johnmichaelcastillo-10/taskforge/releases/latest).
+
 ![The Taskforge landing page, with the board beside the headline](docs/screenshots/landing.webp)
 
 ## Features

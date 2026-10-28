@@ -1,8 +1,13 @@
 # Taskforge: project specification
 
-> **Status (October 2026):** phases 1 to 7, 9 and 10 are built and tested. For phase 8, the
-> Vercel build and the deployment guide ([DEPLOY.md](DEPLOY.md)) are ready, but no live
-> deployment has been made yet, and the app hasn't yet run against a real Turso database.
+> **Status (October 2026):** all ten phases are built and tested.
+> - The site is live on Vercel with a Turso database:
+>   <https://taskforge-seven-flax.vercel.app>.
+> - It's checked from outside by the "Deployed site check" workflow: health, headers, the demo,
+>   the API and Lighthouse.
+> - The desktop installers for Windows and Linux are published as release v0.1.0. Each one was
+>   installed and launched in CI first.
+>
 > Where the build departs from this plan (no assignees yet, archiving as a flag rather than a
 > status, no PWA), [ARCHITECTURE.md](ARCHITECTURE.md) explains why.
 

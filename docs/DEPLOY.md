@@ -69,7 +69,9 @@ What each setting is for:
 
 ## 4. Deploy and check
 
-Deploy from the Vercel dashboard, or push to the main branch. Then check:
+Deploy from the Vercel dashboard, by pushing to the main branch (when the project is connected
+to the repository), or from a computer with the Vercel CLI: `vercel deploy --prod`.
+`.vercelignore` keeps the desktop build output and docs out of the upload. Then check:
 
 1. `https://<your-app>.vercel.app/api/health` returns `{"status":"ok","checks":{"database":"ok"}}`.
 2. **Try the demo** opens a seeded workspace.
@@ -107,12 +109,20 @@ deleted.
 - **Everyone gets "Too many attempts":** set `NUXT_TRUST_PROXY=true`.
 - **Everyone was signed out:** `NUXT_SESSION_PASSWORD` changed.
 
-## What has and hasn't been tested
+## Checking a deployment
 
-- **Tested locally:** the Vercel build (`NITRO_PRESET=vercel`), with its function run behind a
-  local HTTP server. It served the health check, demo sign-up, pages with the CSP, static
-  assets, and the API's 401.
-- **Not yet run:** a live deployment, and the app against a real Turso database. This network
-  blocks `*.vercel.app`, and the libSQL server image couldn't be pulled for a local stand-in. The
-  app uses Turso's documented client (`@libsql/client` with a `libsql://` URL and auth token).
-  After the first deployment, run the checks in step 4.
+The **Deployed site check** workflow (Actions tab → *Deployed site check* → *Run workflow*,
+with the site's URL) checks a deployment from outside. It verifies:
+- the health check;
+- the security headers;
+- that a demo starts with its sample data;
+- that the API refuses requests without a token;
+- the download page's installer links.
+
+It also records Lighthouse scores.
+
+The production deployment passed it. A scratch Turso database also confirmed the database rules
+the app relies on:
+- foreign keys on, including inside transactions, so deletes cascade;
+- the one-running-timer index;
+- the CHECK constraints.
