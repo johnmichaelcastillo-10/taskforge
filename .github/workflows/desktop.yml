@@ -80,10 +80,17 @@ jobs:
         with:
           path: installers
           merge-multiple: true
-      - name: Create a draft release with the installers
+      # The artifacts arrive in one folder per format (msi/, nsis/, deb/, appimage/).
+      - name: Create a draft release with the installers (or update it)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" installers/* \
-            --repo "$GITHUB_REPOSITORY" --draft --title "Taskforge $GITHUB_REF_NAME" \
-            --notes "Desktop installers for Windows (.msi, .exe) and Linux (.deb, .AppImage)."
+          files=$(find installers -type f)
+          echo "$files"
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" $files --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" $files \
+              --repo "$GITHUB_REPOSITORY" --draft --title "Taskforge $GITHUB_REF_NAME" \
+              --notes "Desktop installers for Windows (.msi, .exe) and Linux (.deb, .AppImage)."
+          fi
