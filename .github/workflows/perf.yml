@@ -46,14 +46,18 @@ jobs:
         run: |
           for page in / /dashboard /board /analytics /projects; do
             for run in 1 2 3; do
-              npx --yes lighthouse@12 "http://localhost:3000$page" --quiet --output=json \
-                --output-path="lh-$(echo "$page" | tr / _)-$run.json" --extra-headers=headers.json \
-                --only-categories=performance --chrome-flags="--headless=new --no-sandbox"
+              # Lighthouse occasionally fails to record a trace (NO_NAVSTART): try a run twice.
+              for attempt in 1 2; do
+                npx --yes lighthouse@12 "http://localhost:3000$page" --quiet --output=json \
+                  --output-path="lh-$(echo "$page" | tr / _)-$run.json" --extra-headers=headers.json \
+                  --only-categories=performance --chrome-flags="--headless=new --no-sandbox" && break
+                rm -f "lh-$(echo "$page" | tr / _)-$run.json"
+              done
             done
           done
           node -e '
             const fs = require("fs")
-            const median = values => values.sort((a, b) => a - b)[1]
+            const median = values => values.sort((a, b) => a - b)[Math.floor(values.length / 2)]
             const groups = {}
             for (const file of fs.readdirSync(".").filter(f => /^lh-.*\.json$/.test(f))) {
               const page = file.replace(/^lh-|-\d\.json$/g, "").replace(/_/g, "/") || "/"
@@ -65,5 +69,5 @@ jobs:
               const score = median(runs.map(r => r.categories.performance.score * 100))
               const js = median(runs.map(r => r.audits["network-requests"].details.items
                 .filter(i => i.resourceType === "Script").reduce((s, i) => s + i.transferSize, 0)))
-              console.log(`${page.padEnd(11)} score ${Math.round(score)}  FCP ${Math.round(m("first-contentful-paint"))}ms  LCP ${Math.round(m("largest-contentful-paint"))}ms  TBT ${Math.round(m("total-blocking-time"))}ms  JS ${Math.round(js / 1024)}KB`)
+              console.log(`${page.padEnd(11)} (${runs.length} runs) score ${Math.round(score)}  FCP ${Math.round(m("first-contentful-paint"))}ms  LCP ${Math.round(m("largest-contentful-paint"))}ms  TBT ${Math.round(m("total-blocking-time"))}ms  JS ${Math.round(js / 1024)}KB`)
             }'
