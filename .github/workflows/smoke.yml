@@ -48,6 +48,12 @@ jobs:
           status=$(curl -sS -o /dev/null -w '%{http_code}' "$SITE/api/v1/me")
           echo "api: $status"; test "$status" = 401
 
+      - name: Download page (where the installer buttons point)
+        run: |
+          curl -fsS "$SITE/download" -o download.html
+          grep -o 'Download for [A-Za-z]*' download.html | sort -u || true
+          grep -o 'href="https://[^"]*releases[^"]*"' download.html | sort -u || echo "No installer links: NUXT_PUBLIC_DOWNLOADS_URL isn't set."
+
       # Scores for the record, not a pass/fail gate: lab numbers vary from run to run.
       - name: Lighthouse (landing page, mobile and desktop)
         run: |
