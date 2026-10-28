@@ -1,0 +1,49 @@
+name: Deployed site check
+
+# Checks a deployed Taskforge site from outside: run it by hand from the Actions tab with the
+# site's address, after a deployment.
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: The site, such as https://taskforge.example.com
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SITE: ${{ inputs.url }}
+    steps:
+      - name: Health check reaches the database
+        run: |
+          body=$(curl -fsS "$SITE/api/health")
+          echo "$body"
+          test "$body" = '{"status":"ok","checks":{"database":"ok"}}'
+
+      - name: Security headers
+        run: |
+          headers=$(curl -fsS -D - -o /dev/null "$SITE/")
+          echo "$headers" | grep -i -E '^(content-security-policy|strict-transport-security|x-frame-options|content-encoding):'
+          echo "$headers" | grep -qi "^content-security-policy: .*'nonce-"
+          echo "$headers" | grep -qi '^strict-transport-security:'
+          echo "$headers" | grep -qi '^x-frame-options: DENY'
+
+      - name: A demo starts, and its pages render with seeded data
+        run: |
+          status=$(curl -sS -o demo.json -w '%{http_code}' -c cookies.txt -H 'content-type: application/json' \
+            -d '{"timezone":"UTC"}' "$SITE/api/auth/demo")
+          echo "demo: $status"; test "$status" = 201
+          curl -fsS -b cookies.txt "$SITE/api/projects" | grep -q 'Portfolio site redesign'
+          curl -fsS -b cookies.txt "$SITE/board" | grep -q 'Build the case study template'
+          curl -fsS -b cookies.txt "$SITE/api/dashboard" | grep -q '"activeProjectCount":3'
+
+      - name: The API turns away requests without a token
+        run: |
+          status=$(curl -sS -o /dev/null -w '%{http_code}' "$SITE/api/v1/me")
+          echo "api: $status"; test "$status" = 401
