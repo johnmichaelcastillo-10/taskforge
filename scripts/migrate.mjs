@@ -22,7 +22,12 @@ const migrationsFolder = process.env.MIGRATIONS_DIR
 // On Vercel (the build sets VERCEL=1) a local file would vanish with the build: the database
 // has to be Turso. Fail the deployment rather than ship an app with nowhere to keep its data.
 if (process.env.VERCEL && !/^(libsql|https?|wss?):\/\//.test(url)) {
-  console.error('NUXT_DATABASE_URL must be a Turso URL (libsql://…) on Vercel. See docs/DEPLOY.md.')
+  // The URL isn't a secret (the token is), so say what arrived: that pins down a variable that
+  // wasn't set for this environment, or one with stray characters.
+  const received = process.env.NUXT_DATABASE_URL === undefined
+    ? 'it isn’t set for this deployment'
+    : `it starts with ${JSON.stringify(process.env.NUXT_DATABASE_URL.slice(0, 12))}`
+  console.error(`NUXT_DATABASE_URL must be a Turso URL (libsql://…) on Vercel, but ${received}. See docs/DEPLOY.md.`)
   process.exit(1)
 }
 

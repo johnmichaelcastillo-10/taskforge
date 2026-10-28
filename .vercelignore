@@ -1,0 +1,9 @@
+# Not needed to build the site on Vercel (and desktop/ can hold gigabytes of Rust build output).
+desktop
+data
+docs
+tests
+.nuxt
+.output
+.playwright-cli
+node_modules

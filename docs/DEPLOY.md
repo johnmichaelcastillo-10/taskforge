@@ -97,6 +97,11 @@ deleted.
 
 - **The build fails with "NUXT_DATABASE_URL must be a Turso URL":** the variable is missing,
   isn't available at build time, or still points to a local file.
+- **The message says the URL starts with `"﻿libsql…"`:** Windows PowerShell put an invisible
+  byte-order mark in front of a value piped into `vercel env add`. This affects every variable
+  added that way, not just the URL. Run
+  `$OutputEncoding = New-Object System.Text.UTF8Encoding($false)` first, then add the variables
+  again, or set them in the Vercel dashboard.
 - **`/api/health` returns 503:** the database URL or token is wrong, or the token has expired.
   The function logs on Vercel show the error.
 - **Everyone gets "Too many attempts":** set `NUXT_TRUST_PROXY=true`.
