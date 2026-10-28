@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { Bar, Doughnut, Line } from 'vue-chartjs'
-
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 
 const route = useRoute()
@@ -162,7 +160,8 @@ const progressChart = computed(() => ({
           empty-text="No tasks were completed in this period."
           :table="{ columns: ['Day', 'Completed'], rows: data.days.map((day, i) => [formatDate(day), data!.completedPerDay[i]!]) }"
         >
-          <Bar
+          <LazyChartView
+            type="bar"
             :data="completedChart"
             :options="countOptions"
           />
@@ -175,7 +174,8 @@ const progressChart = computed(() => ({
           empty-text="No time was tracked in this period."
           :table="{ columns: ['Week of', 'Tracked'], rows: weeks.map(week => [formatDate(week.weekStart), formatDuration(week.total)]) }"
         >
-          <Bar
+          <LazyChartView
+            type="bar"
             :data="trackedChart"
             :options="hoursOptions"
           />
@@ -188,7 +188,8 @@ const progressChart = computed(() => ({
           empty-text="No estimated tasks were finished in this period."
           :table="{ columns: ['Project', 'Tasks', 'Estimated', 'Tracked'], rows: estimates.map(row => [row.projectName, row.taskCount, formatDuration(row.estimatedSeconds), formatDuration(row.trackedSeconds)]) }"
         >
-          <Bar
+          <LazyChartView
+            type="bar"
             :data="estimateChart"
             :options="estimateOptions"
           />
@@ -201,7 +202,8 @@ const progressChart = computed(() => ({
           empty-text="No tasks in active projects."
           :table="{ columns: ['Column', 'Tasks'], rows: TASK_STATUSES.map(status => [TASK_STATUS_LABELS[status], data!.statusCounts[status]]) }"
         >
-          <Doughnut
+          <LazyChartView
+            type="doughnut"
             :data="statusChart"
             :options="statusOptions"
           />
@@ -214,7 +216,8 @@ const progressChart = computed(() => ({
           empty-text="No active projects with tasks."
           :table="{ columns: ['Project', 'At the start', 'At the end'], rows: progress.map(p => [p.name, `${p.percents[0]}%`, `${p.percents.at(-1)}%`]) }"
         >
-          <Line
+          <LazyChartView
+            type="line"
             :data="progressChart"
             :options="progressOptions"
           />
