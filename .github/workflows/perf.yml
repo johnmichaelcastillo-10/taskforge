@@ -47,7 +47,8 @@ jobs:
         run: |
           start() {
             name=$1 ref=$2 port=$3
-            git worktree add --detach "sides/$name" "$ref"
+            # Branches other than the default one exist only as origin/<name> here.
+            git worktree add --detach "sides/$name" "$ref" || git worktree add --detach "sides/$name" "origin/$ref"
             (
               cd "sides/$name"
               export NUXT_DATABASE_URL=file:./data/perf.db PORT=$port
