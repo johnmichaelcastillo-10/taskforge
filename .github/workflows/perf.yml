@@ -1,0 +1,69 @@
+name: Mobile performance
+
+# Lighthouse (mobile) on the main pages of any commit, built and served on a clean runner with a
+# demo session: three runs per page, medians reported. For comparing two versions fairly.
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Commit, branch or tag to measure
+        required: true
+        default: main
+
+permissions:
+  contents: read
+
+jobs:
+  lighthouse:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      NUXT_DATABASE_URL: file:./data/perf.db
+      NUXT_SESSION_PASSWORD: perf-benchmark-session-password-0123456789
+      PORT: 3000
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: node scripts/migrate.mjs
+
+      - name: Start the server and open a demo session
+        run: |
+          node .output/server/index.mjs > server.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://localhost:3000/api/health && break; sleep 1; done
+          curl -fsS -c cookies.txt -H 'content-type: application/json' -d '{"timezone":"UTC"}' http://localhost:3000/api/auth/demo > /dev/null
+          cookie=$(awk '$6 == "nuxt-session" { print "nuxt-session=" $7 }' cookies.txt)
+          echo "{\"Cookie\": \"$cookie\"}" > headers.json
+
+      - name: Lighthouse, mobile, three runs per page
+        run: |
+          for page in / /dashboard /board /analytics /projects; do
+            for run in 1 2 3; do
+              npx --yes lighthouse@12 "http://localhost:3000$page" --quiet --output=json \
+                --output-path="lh-$(echo "$page" | tr / _)-$run.json" --extra-headers=headers.json \
+                --only-categories=performance --chrome-flags="--headless=new --no-sandbox"
+            done
+          done
+          node -e '
+            const fs = require("fs")
+            const median = values => values.sort((a, b) => a - b)[1]
+            const groups = {}
+            for (const file of fs.readdirSync(".").filter(f => /^lh-.*\.json$/.test(f))) {
+              const page = file.replace(/^lh-|-\d\.json$/g, "").replace(/_/g, "/") || "/"
+              const r = JSON.parse(fs.readFileSync(file))
+              ;(groups[page] ??= []).push(r)
+            }
+            for (const [page, runs] of Object.entries(groups)) {
+              const m = key => median(runs.map(r => r.audits[key].numericValue))
+              const score = median(runs.map(r => r.categories.performance.score * 100))
+              const js = median(runs.map(r => r.audits["network-requests"].details.items
+                .filter(i => i.resourceType === "Script").reduce((s, i) => s + i.transferSize, 0)))
+              console.log(`${page.padEnd(11)} score ${Math.round(score)}  FCP ${Math.round(m("first-contentful-paint"))}ms  LCP ${Math.round(m("largest-contentful-paint"))}ms  TBT ${Math.round(m("total-blocking-time"))}ms  JS ${Math.round(js / 1024)}KB`)
+            }'
