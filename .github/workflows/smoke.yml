@@ -47,3 +47,13 @@ jobs:
         run: |
           status=$(curl -sS -o /dev/null -w '%{http_code}' "$SITE/api/v1/me")
           echo "api: $status"; test "$status" = 401
+
+      # Scores for the record, not a pass/fail gate: lab numbers vary from run to run.
+      - name: Lighthouse (landing page, mobile and desktop)
+        run: |
+          for form in mobile desktop; do
+            preset=""; [ "$form" = desktop ] && preset="--preset=desktop"
+            npx --yes lighthouse@12 "$SITE/" $preset --quiet --output=json --output-path="lh-$form.json" \
+              --chrome-flags="--headless=new --no-sandbox"
+            node -e "const r = require('./lh-$form.json'); console.log('$form:', Object.values(r.categories).map(c => c.id + '=' + Math.round(c.score * 100)).join(' '), '| LCP', r.audits['largest-contentful-paint'].displayValue)"
+          done
