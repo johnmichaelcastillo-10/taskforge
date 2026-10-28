@@ -189,7 +189,9 @@ function clearFilters() {
         :actions="[{ label: 'Clear filters', color: 'neutral', variant: 'outline', onClick: clearFilters }]"
       />
 
-      <!-- Columns scroll sideways on narrow screens; the page itself never does. -->
+      <!-- Columns scroll sideways on narrow screens; the page itself never does. On touch screens
+           a card is picked up by pressing on it for a moment (delay-on-touch-only below), so a
+           quick swipe across the cards scrolls the columns instead of grabbing one. -->
       <div class="-mx-4 flex flex-1 snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2 sm:-mx-6 sm:px-6 lg:snap-none">
         <section
           v-for="status in TASK_STATUSES"
@@ -222,7 +224,11 @@ function clearFilters() {
             :data-status="status"
             filter=".no-drag"
             :prevent-on-filter="false"
+            :delay="250"
+            :delay-on-touch-only="true"
+            :touch-start-threshold="5"
             ghost-class="opacity-40"
+            chosen-class="ring-2"
             class="flex min-h-24 flex-1 flex-col gap-2 p-3 empty:items-center empty:justify-center empty:after:text-xs empty:after:text-muted empty:after:content-['Drop_tasks_here']"
             @end="onDrop"
           >
