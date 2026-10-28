@@ -232,13 +232,14 @@ const menu = computed(() => [
       </section>
     </div>
 
-    <ProjectFormModal
-      v-if="project"
+    <LazyProjectFormModal
+      v-if="project && editing"
       v-model:open="editing"
       :project="project"
       @saved="reload"
     />
-    <TaskSlideover
+    <LazyTaskSlideover
+      v-if="openTaskId !== null"
       v-model:open="panelOpen"
       :task-id="openTaskId"
       :readonly="archived"

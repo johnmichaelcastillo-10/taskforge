@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { Bar } from 'vue-chartjs'
-
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 
 const { user } = useUserSession()
@@ -237,7 +235,8 @@ const greeting = computed(() => {
           empty-text="Nothing completed in the last eight weeks."
           :table="{ columns: ['Week of', 'Completed'], rows: weekly.map(week => [shortDay(week.weekStart), week.total]) }"
         >
-          <Bar
+          <LazyChartView
+            type="bar"
             :data="weeklyChart"
             :options="chartOptions"
           />
@@ -252,7 +251,9 @@ const greeting = computed(() => {
       </div>
     </div>
 
-    <TaskSlideover
+    <LazyTaskSlideover
+
+      v-if="openTaskId !== null"
       v-model:open="panelOpen"
       :task-id="openTaskId"
       @changed="refresh"

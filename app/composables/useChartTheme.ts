@@ -1,33 +1,11 @@
-import {
-  ArcElement,
-  BarElement,
-  CategoryScale,
-  Chart,
-  type ChartOptions,
-  Filler,
-  Legend,
-  LinearScale,
-  LineElement,
-  PointElement,
-  Tooltip,
-} from 'chart.js'
-
-// Registered here rather than in a plugin, so Chart.js loads only with the pages that chart
-// something (this file is imported only where it's used). Only the parts the charts need.
-let registered = false
-function registerCharts() {
-  if (registered) return
-  Chart.register(ArcElement, BarElement, CategoryScale, Filler, Legend, LinearScale, LineElement, PointElement, Tooltip)
-  Chart.defaults.font.family = 'ui-sans-serif, system-ui, sans-serif'
-  registered = true
-}
+// Types only: Chart.js itself loads with components/ChartView.vue, lazily.
+import type { ChartOptions } from 'chart.js'
 
 /**
  * Chart colours for the current colour mode. Chart.js needs concrete colour strings rather than
  * CSS variables, so these mirror the Tailwind shades the rest of the UI uses.
  */
 export function useChartTheme() {
-  registerCharts()
   const colorMode = useColorMode()
   return computed(() => {
     const dark = colorMode.value === 'dark'

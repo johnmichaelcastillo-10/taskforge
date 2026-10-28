@@ -142,7 +142,9 @@ function clearFilters() {
       </div>
     </div>
 
-    <ProjectFormModal
+    <LazyProjectFormModal
+
+      v-if="creating"
       v-model:open="creating"
       @saved="onCreated"
     />

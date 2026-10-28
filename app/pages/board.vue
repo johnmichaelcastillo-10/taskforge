@@ -273,7 +273,9 @@ function clearFilters() {
       </div>
     </div>
 
-    <TaskSlideover
+    <LazyTaskSlideover
+
+      v-if="openTaskId !== null"
       v-model:open="panelOpen"
       :task-id="openTaskId"
       :readonly="readonly"
